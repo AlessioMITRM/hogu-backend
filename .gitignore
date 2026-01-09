@@ -1,0 +1,52 @@
+# Byte-compiled / class files
+*.class
+*.jar
+*.war
+*.ear
+
+# Build folders
+target/
+build/
+
+# Logs
+*.log
+logs/
+*.out
+*.err
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# Eclipse specific
+.settings/
+*.launch
+.project
+
+# NetBeans specific
+nbproject/private/
+build/
+nbbuild/
+dist/
+.nb-gradle/
+
+# Temporary files
+*.tmp
+*.swp
+*~
+.DS_Store
+
+# Dependency directories
+node_modules/
+
+# Backup / patch files
+*.bak
+*.orig
+
+# Spring Boot local properties to ignore (but NOT application.yml)
+# *.properties   <- non ignorare application.properties se vuoi committarlo
+# *.yml          <- non ignorare application.yml se vuoi committarlo
+*.env           # file con credenziali locali sensibili
