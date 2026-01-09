@@ -54,8 +54,11 @@ public interface LuggageServiceJpa extends JpaRepository<LuggageServiceEntity, L
 	@Query("SELECT COUNT(l) FROM LuggageServiceEntity l WHERE l.user.id = :providerId")
 	Long countTotalByProvider(Long providerId);
 
-	@Query("SELECT l FROM LuggageServiceEntity l WHERE l.id = :id AND l.publicationStatus = true")
-	Optional<LuggageServiceEntity> findDetailById(Long id);
+	@Query("SELECT l FROM LuggageServiceEntity l " +
+			"LEFT JOIN FETCH l.locales loc " +
+			"WHERE l.id = :id AND l.publicationStatus = true " +
+			"AND (:language IS NULL OR LOWER(loc.language) = LOWER(:language))")
+	Optional<LuggageServiceEntity> findDetailById(@Param("id") Long id, @Param("language") String language);
 
 	List<LuggageServiceEntity> findByUser(User user);
 }

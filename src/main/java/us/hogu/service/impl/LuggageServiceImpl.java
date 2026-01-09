@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -88,7 +89,8 @@ public class LuggageServiceImpl implements LuggageService {
     @Override
     @Transactional(readOnly = true)
     public LuggageServiceResponseDto getLuggageServiceDetail(Long serviceId) {
-        LuggageServiceEntity entity = luggageServiceJpa.findDetailById(serviceId)
+        String language = LocaleContextHolder.getLocale().getLanguage();
+        LuggageServiceEntity entity = luggageServiceJpa.findDetailById(serviceId, language)
                 .orElseThrow(() -> new ValidationException(
                         ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.name(),
                         ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.getMessage()));
