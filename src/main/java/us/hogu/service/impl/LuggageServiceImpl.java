@@ -2,6 +2,7 @@ package us.hogu.service.impl;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.OffsetDateTime;
@@ -18,13 +19,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import lombok.RequiredArgsConstructor;
 import us.hogu.common.constants.ErrorConstants;
 import us.hogu.common.util.ImageUtils;
 import us.hogu.controller.dto.request.LuggageBookingRequestDto;
 import us.hogu.controller.dto.request.LuggageSearchRequestDto;
 import us.hogu.controller.dto.request.LuggageServiceRequestDto;
 import us.hogu.controller.dto.request.LuggageSizePriceRequestDto;
+import us.hogu.controller.dto.request.OpeningHourRequestDto;
 import us.hogu.controller.dto.request.ServiceLocaleRequestDto;
+import us.hogu.controller.dto.response.ClubInfoStatsDto;
+import us.hogu.controller.dto.response.InfoStatsDto;
 import us.hogu.controller.dto.response.LuggageBookingResponseDto;
 import us.hogu.controller.dto.response.LuggageSearchResultResponseDto;
 import us.hogu.controller.dto.response.LuggageServiceAdminResponseDto;
@@ -32,6 +37,7 @@ import us.hogu.controller.dto.response.LuggageServiceDetailResponseDto;
 import us.hogu.controller.dto.response.LuggageServiceProviderResponseDto;
 import us.hogu.controller.dto.response.LuggageServiceResponseDto;
 import us.hogu.controller.dto.response.LuggageSizePriceResponseDto;
+import us.hogu.controller.dto.response.OpeningHourResponseDto;
 import us.hogu.controller.dto.response.ServiceLocaleResponseDto;
 import us.hogu.controller.dto.response.ServiceSummaryResponseDto;
 import us.hogu.exception.ValidationException;
@@ -49,7 +55,6 @@ import us.hogu.repository.jpa.LuggageServiceJpa;
 import us.hogu.repository.jpa.UserJpa;
 import us.hogu.service.intefaces.FileService;
 import us.hogu.service.intefaces.LuggageService;
-import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Service
@@ -61,16 +66,33 @@ public class LuggageServiceImpl implements LuggageService {
     private final LuggageServiceJdbc luggageServiceJdbc;
     private final FileService fileService;
 
+    private static final BigDecimal ZERO = BigDecimal.ZERO;
+    private static final int MONEY_SCALE = 2;
+    private static final RoundingMode MONEY_ROUNDING = RoundingMode.HALF_UP;
+
+    
+    @Override
+    @Transactional(readOnly = true)
+    public InfoStatsDto getInfo(Long providerId) {
+        LuggageServiceEntity entity = luggageServiceJpa.findByProviderIdForSingleService(providerId)
+                .orElseThrow(() -> new ValidationException(
+                        ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.name(),
+                        ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.getMessage()));
+
+        InfoStatsDto infoStats = luggageServiceJpa.getInfoStatsByProviderId(providerId);
+        infoStats.setServiceId(entity.getId());
+
+        return infoStats;
+    }
+
     @Override
     @Transactional(readOnly = true)
     public Page<ServiceSummaryResponseDto> getAllActiveLuggageServices(Pageable pageable) {
         Page<LuggageServiceEntity> entities = luggageServiceJpa.findActiveSummaries(pageable);
         List<ServiceSummaryResponseDto> dtoList = new ArrayList<>();
-
         for (LuggageServiceEntity entity : entities.getContent()) {
             dtoList.add(buildSummaryDto(entity));
         }
-
         return new PageImpl<>(dtoList, pageable, entities.getTotalElements());
     }
 
@@ -82,7 +104,6 @@ public class LuggageServiceImpl implements LuggageService {
                 .stream()
                 .map(this::buildSummaryDto)
                 .collect(Collectors.toList());
-
         return new PageImpl<>(content, pageable, entities.getTotalElements());
     }
 
@@ -94,35 +115,45 @@ public class LuggageServiceImpl implements LuggageService {
                 .orElseThrow(() -> new ValidationException(
                         ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.name(),
                         ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.getMessage()));
-        
+
         ServiceLocale loc = entity.getLocales().get(0);
         ServiceLocaleResponseDto locDto = ServiceLocaleResponseDto.builder()
-        									.address(loc.getAddress())
-        									.city(loc.getCity())
-        									.country(loc.getCountry())
-        									.language(loc.getLanguage())
-        									.build();
-        
-        List<LuggageSizePriceResponseDto> sizePrices = new ArrayList<>();
+                .address(loc.getAddress())
+                .city(loc.getCity())
+                .country(loc.getCountry())
+                .language(loc.getLanguage())
+                .build();
 
+        List<LuggageSizePriceResponseDto> sizePrices = new ArrayList<>();
         for (LuggageSizePrice sp : entity.getSizePrices()) {
             LuggageSizePriceResponseDto spDto = new LuggageSizePriceResponseDto();
             spDto.setSizeLabel(sp.getSizeLabel());
             spDto.setPricePerDay(sp.getPricePerDay());
             spDto.setPricePerHour(sp.getPricePerHour());
             spDto.setDescription(sp.getDescription());
-
-            sizePrices.add(spDto); 
+            sizePrices.add(spDto);
         }
-        
+
+        List<OpeningHourResponseDto> openingHours = new ArrayList<>();
+        for (OpeningHour oh : entity.getOpeningHours()) {
+            OpeningHourResponseDto ohDto = OpeningHourResponseDto.builder()
+                    .dayOfWeek(oh.getDayOfWeek())
+                    .openingTime(oh.getOpeningTime())
+                    .closingTime(oh.getClosingTime())
+                    .closed(oh.getClosed())
+                    .build();
+            openingHours.add(ohDto);
+        }
+
         return LuggageServiceResponseDto.builder()
-        	.name(entity.getName())
-        	.images(entity.getImages())
-        	.available(true)
-        	.serviceLocale(List.of(locDto))
-        	.basePrice(entity.getBasePrice())
-        	.sizePrices(null)
-        	.build();        
+                .name(entity.getName())
+                .images(entity.getImages())
+                .available(true)
+                .serviceLocale(List.of(locDto))
+                .basePrice(entity.getBasePrice())
+                .sizePrices(sizePrices)
+                .openingHours(openingHours)
+                .build();
     }
 
     @Override
@@ -130,11 +161,9 @@ public class LuggageServiceImpl implements LuggageService {
     public Page<ServiceSummaryResponseDto> searchLuggageServices(String searchTerm, Pageable pageable) {
         Page<LuggageServiceEntity> entities = luggageServiceJpa.findActiveBySearch(searchTerm, pageable);
         List<ServiceSummaryResponseDto> dtoList = new ArrayList<>();
-
         for (LuggageServiceEntity entity : entities.getContent()) {
             dtoList.add(buildSummaryDto(entity));
         }
-
         return new PageImpl<>(dtoList, pageable, entities.getTotalElements());
     }
 
@@ -181,7 +210,6 @@ public class LuggageServiceImpl implements LuggageService {
     public LuggageServiceDetailResponseDto createLuggageService(Long providerId,
                                                                 LuggageServiceRequestDto requestDto,
                                                                 List<MultipartFile> images) throws IOException {
-
         User provider = userJpa.findById(providerId)
                 .orElseThrow(() -> new ValidationException(
                         ErrorConstants.PROVIDER_NOT_FOUND.name(),
@@ -189,6 +217,7 @@ public class LuggageServiceImpl implements LuggageService {
 
         LuggageServiceEntity entity = new LuggageServiceEntity();
         populateEntityFromDto(entity, requestDto);
+
         entity.setUser(provider);
         entity.setPublicationStatus(requestDto.getPublicationStatus());
         entity.setImages(new ArrayList<>());
@@ -201,6 +230,7 @@ public class LuggageServiceImpl implements LuggageService {
         Path basePath = Paths.get(ImageUtils.STORAGE_ROOT,
                 ServiceType.LUGGAGE.name().toLowerCase(),
                 saved.getId().toString());
+
         fileService.uploadImagesPathCustom(basePath, saved.getImages(), images);
 
         saved = luggageServiceJpa.save(saved);
@@ -214,7 +244,6 @@ public class LuggageServiceImpl implements LuggageService {
                                                                 Long serviceId,
                                                                 LuggageServiceRequestDto requestDto,
                                                                 List<MultipartFile> images) throws Exception {
-
         LuggageServiceEntity entity = luggageServiceJpa.findById(serviceId)
                 .orElseThrow(() -> new ValidationException(
                         ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.name(),
@@ -227,39 +256,42 @@ public class LuggageServiceImpl implements LuggageService {
         }
 
         populateEntityFromDto(entity, requestDto);
-        entity.setPublicationStatus(requestDto.getPublicationStatus());
 
         BigDecimal calculatedBasePrice = calculateBasePrice(requestDto.getSizePrices());
+
         entity.setBasePrice(calculatedBasePrice);
+        entity.setPublicationStatus(requestDto.getPublicationStatus());
 
         LuggageServiceEntity updated = luggageServiceJpa.save(entity);
 
         Path basePath = Paths.get(ImageUtils.STORAGE_ROOT,
                 ServiceType.LUGGAGE.name().toLowerCase(),
                 updated.getId().toString());
+
         fileService.updateImagesPathCustom(basePath, updated.getImages(), images);
 
         updated = luggageServiceJpa.save(updated);
 
+        // MODIFICA RICHIESTA: usa buildDetailResponseDto invece di buildProviderResponseDto
         return buildDetailResponseDto(updated, entity.getUser());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public LuggageServiceProviderResponseDto getLuggageServiceByIdAndProvider(Long serviceId, Long providerId) {
+    public LuggageServiceDetailResponseDto getLuggageServiceByIdAndProvider(Long serviceId, Long providerId) {
         LuggageServiceEntity entity = luggageServiceJpa.findByIdAndUserId(serviceId, providerId)
                 .orElseThrow(() -> new ValidationException(
                         ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.name(),
                         "Deposito non trovato o non appartiene al provider."));
 
-        return buildProviderResponseDto(entity);
+        // MODIFICA RICHIESTA: usa buildDetailResponseDto invece di buildProviderResponseDto
+        return buildDetailResponseDto(entity, entity.getUser());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<LuggageServiceProviderResponseDto> getProviderLuggageServices(Long providerId) {
-        List<LuggageServiceEntity> entities = null ;//luggageServiceJpa.findAllByUserId(providerId);
-
+        List<LuggageServiceEntity> entities = luggageServiceJpa.findAllByUserId(providerId);
         return entities.stream()
                 .map(this::buildProviderResponseDto)
                 .collect(Collectors.toList());
@@ -298,7 +330,6 @@ public class LuggageServiceImpl implements LuggageService {
     @Transactional(readOnly = true)
     public List<LuggageServiceAdminResponseDto> getAllLuggageServicesForAdmin() {
         List<LuggageServiceEntity> entities = luggageServiceJpa.findAllForAdmin();
-
         return entities.stream()
                 .map(this::buildAdminResponseDto)
                 .collect(Collectors.toList());
@@ -322,7 +353,7 @@ public class LuggageServiceImpl implements LuggageService {
     }
 
     // ===================================================================
-    // METODI PRIVATI DI SUPPORTO (Java 11 compatibili)
+    // METODI PRIVATI DI SUPPORTO
     // ===================================================================
 
     private void populateEntityFromDto(LuggageServiceEntity entity, LuggageServiceRequestDto dto) {
@@ -330,98 +361,114 @@ public class LuggageServiceImpl implements LuggageService {
         entity.setDescription(dto.getDescription());
         entity.setCapacity(dto.getCapacity());
 
-        // Locales
+        // Locales - modifica la collezione esistente
+        if (entity.getLocales() == null) {
+            entity.setLocales(new ArrayList<>());
+        }
+        entity.getLocales().clear();
         if (dto.getLocales() != null && !dto.getLocales().isEmpty()) {
-            ServiceLocale locale = new ServiceLocale();
             ServiceLocaleRequestDto locDto = dto.getLocales().get(0);
+            ServiceLocale locale = new ServiceLocale();
             locale.setServiceType(ServiceType.LUGGAGE);
-            locale.setLanguage("it");
-            locale.setCountry("IT");
+            locale.setLanguage(locDto.getLanguage() != null ? locDto.getLanguage() : "it");
+            locale.setCountry(locDto.getCountry() != null ? locDto.getCountry() : "Italia");
             locale.setState(locDto.getState());
             locale.setCity(locDto.getCity());
             locale.setAddress(locDto.getAddress());
-           // locale.setLuggageService(entity);
-            entity.setLocales(Collections.singletonList(locale));
-        } else {
-            entity.setLocales(new ArrayList<>());
+            entity.getLocales().add(locale);
         }
 
-        // OpeningHours
+        // OpeningHours - modifica la collezione esistente
+        if (entity.getOpeningHours() == null) {
+            entity.setOpeningHours(new ArrayList<>());
+        }
+        entity.getOpeningHours().clear();
         if (dto.getOpeningHours() != null) {
-            List<OpeningHour> hours = new ArrayList<>();
-            for (var ohDto : dto.getOpeningHours()) {
+            for (OpeningHourRequestDto ohDto : dto.getOpeningHours()) {
                 OpeningHour oh = new OpeningHour();
                 oh.setDayOfWeek(ohDto.getDayOfWeek());
                 oh.setOpeningTime(ohDto.getOpeningTime());
                 oh.setClosingTime(ohDto.getClosingTime());
                 oh.setClosed(ohDto.getClosed() != null && ohDto.getClosed());
-               // oh.setLuggageService(entity);
-                hours.add(oh);
+                oh.setLuggageService(entity);
+                entity.getOpeningHours().add(oh);
             }
-            entity.setOpeningHours(hours);
-        } else {
-            entity.setOpeningHours(new ArrayList<>());
         }
 
-        // SizePrices
+        // SizePrices - modifica la collezione esistente
+        if (entity.getSizePrices() == null) {
+            entity.setSizePrices(new ArrayList<>());
+        }
+        entity.getSizePrices().clear();
         if (dto.getSizePrices() != null) {
-            List<LuggageSizePrice> sizePrices = new ArrayList<>();
             for (LuggageSizePriceRequestDto spDto : dto.getSizePrices()) {
                 LuggageSizePrice sp = new LuggageSizePrice();
                 sp.setSizeLabel(spDto.getSizeLabel());
                 sp.setPricePerDay(spDto.getPricePerDay());
                 sp.setPricePerHour(spDto.getPricePerHour());
                 sp.setDescription(spDto.getDescription());
-               // sp.setLuggageService(entity);
-                sizePrices.add(sp);
+                sp.setLuggageService(entity);
+                entity.getSizePrices().add(sp);
             }
-            entity.setSizePrices(sizePrices);
-        } else {
-            entity.setSizePrices(new ArrayList<>());
         }
+
+        entity.setPublicationStatus(dto.getPublicationStatus());
     }
 
     private BigDecimal calculateBasePrice(List<LuggageSizePriceRequestDto> sizePrices) {
         if (sizePrices == null || sizePrices.isEmpty()) {
-            return BigDecimal.ZERO;
+            return ZERO;
         }
+
         return sizePrices.stream()
                 .filter(sp -> sp.getPricePerDay() != null)
                 .map(LuggageSizePriceRequestDto::getPricePerDay)
-                .min(Double::compareTo)
-                .map(BigDecimal::valueOf)
-                .orElse(BigDecimal.ZERO);
+                .filter(price -> price != null && price.compareTo(ZERO) > 0)
+                .min(BigDecimal::compareTo)
+                .orElse(ZERO);
     }
 
     private LuggageServiceDetailResponseDto buildDetailResponseDto(LuggageServiceEntity entity, User provider) {
-        LuggageServiceDetailResponseDto dto = new LuggageServiceDetailResponseDto();
-        dto.setId(entity.getId());
-        dto.setName(entity.getName());
-        dto.setDescription(entity.getDescription());
-        dto.setCapacity(entity.getCapacity());
-        dto.setBasePrice(entity.getBasePrice());
-        dto.setPublicationStatus(entity.getPublicationStatus());
-        dto.setCreationDate(entity.getCreationDate());
+        ServiceLocale loc = entity.getLocales().get(0);
+        ServiceLocaleResponseDto locDto = ServiceLocaleResponseDto.builder()
+                .address(loc.getAddress())
+                .city(loc.getCity())
+                .country(loc.getCountry())
+                .language(loc.getLanguage())
+                .build();
 
-        if (!entity.getLocales().isEmpty()) {
-            ServiceLocale loc = entity.getLocales().get(0);
-            dto.setCity(loc.getCity());
-            dto.setState(loc.getState());
-            dto.setAddress(loc.getAddress());
+        List<LuggageSizePriceResponseDto> sizePrices = new ArrayList<>();
+        for (LuggageSizePrice sp : entity.getSizePrices()) {
+            LuggageSizePriceResponseDto spDto = new LuggageSizePriceResponseDto();
+            spDto.setSizeLabel(sp.getSizeLabel());
+            spDto.setPricePerDay(sp.getPricePerDay());
+            spDto.setPricePerHour(sp.getPricePerHour());
+            spDto.setDescription(sp.getDescription());
+            sizePrices.add(spDto);
         }
 
-        List<String> imageUrls = entity.getImages().stream()
-                .map(filename -> "/files/luggage/" + entity.getId() + "/" + filename)
-                .collect(Collectors.toList());
-        dto.setImages(imageUrls);
+        List<OpeningHourResponseDto> openingHours = new ArrayList<>();
+        for (OpeningHour oh : entity.getOpeningHours()) {
+            OpeningHourResponseDto ohDto = OpeningHourResponseDto.builder()
+                    .dayOfWeek(oh.getDayOfWeek())
+                    .openingTime(oh.getOpeningTime())
+                    .closingTime(oh.getClosingTime())
+                    .closed(oh.getClosed())
+                    .build();
+            openingHours.add(ohDto);
+        }
 
-        //dto.setSizePrices(entity.getSizePrices());
-        //dto.setOpeningHours(entity.getOpeningHours());
-
-        dto.setProviderId(provider.getId());
-       // dto.setProviderName(provider.getBusinessName() != null ? provider.getBusinessName() : provider.getName());
-
-        return dto;
+        return LuggageServiceDetailResponseDto.builder()
+                .name(entity.getName())
+                .images(entity.getImages())
+                .description(entity.getDescription())
+                .publicationStatus(entity.getPublicationStatus())
+                .locales(List.of(locDto))
+                .basePrice(entity.getBasePrice())
+                .sizePrices(sizePrices)
+                .openingHours(openingHours)
+                .capacity(entity.getCapacity())
+                .build();
     }
 
     private LuggageServiceProviderResponseDto buildProviderResponseDto(LuggageServiceEntity entity) {
@@ -440,68 +487,55 @@ public class LuggageServiceImpl implements LuggageService {
             dto.setAddress(loc.getAddress());
         }
 
-        List<String> imageUrls = entity.getImages().stream()
-                .map(filename -> "/files/luggage/" + entity.getId() + "/" + filename)
-                .collect(Collectors.toList());
-        dto.setImages(imageUrls);
-
-       // dto.setSizePrices(entity.getSizePrices());
-        //dto.setOpeningHours(entity.getOpeningHours());
+        dto.setImages(dto.getImages());
 
         return dto;
     }
 
-    // Metodi di build aggiuntivi (puoi implementarli o delegare a mapper se preferisci)
     private ServiceSummaryResponseDto buildSummaryDto(LuggageServiceEntity entity) {
-        // Implementazione base - adatta secondo il tuo ServiceSummaryResponseDto
         ServiceSummaryResponseDto dto = new ServiceSummaryResponseDto();
         dto.setId(entity.getId());
         dto.setName(entity.getName());
-        // ... altri campi necessari
+        // ... altri campi necessari secondo la tua definizione del DTO
         return dto;
     }
 
     private LuggageBookingResponseDto buildBookingResponseDto(LuggageBooking booking) {
-        // Implementa secondo il tuo DTO
         LuggageBookingResponseDto dto = new LuggageBookingResponseDto();
-        // ... mapping manuale
+        // ... mapping manuale secondo la tua struttura del DTO
         return dto;
     }
 
     private LuggageBooking buildBookingEntity(LuggageBookingRequestDto dto, User user, LuggageServiceEntity service) {
-        // Implementa secondo necessità
         LuggageBooking booking = new LuggageBooking();
-        // ... set campi
+        // ... set campi secondo necessità
         return booking;
     }
 
     private LuggageServiceResponseDto buildServiceResponseDto(LuggageServiceEntity entity) {
-        // Implementa secondo il tuo DTO
         LuggageServiceResponseDto dto = new LuggageServiceResponseDto();
-        
-        // ... mapping
+        // ... mapping secondo necessità
         return dto;
     }
 
     private LuggageServiceAdminResponseDto buildAdminResponseDto(LuggageServiceEntity entity) {
-        // Implementa per admin
         LuggageServiceAdminResponseDto dto = new LuggageServiceAdminResponseDto();
-        // ... mapping
+        // ... mapping secondo necessità
         return dto;
     }
 
     private void checkLuggageAvailability(LuggageServiceEntity luggageService,
-                                          OffsetDateTime reservationTime,
-                                          Integer numberOfPeople) {
-        // Logica commentata mantenuta per riferimento
+                                         OffsetDateTime reservationTime,
+                                         Integer numberOfPeople) {
+        // TODO: implementare la logica reale di controllo disponibilità
         throw new ValidationException(
                 ErrorConstants.INSUFFICIENT_AVAILABLE_SEATS.name(),
                 ErrorConstants.INSUFFICIENT_AVAILABLE_SEATS.getMessage());
     }
 
-	@Override
-	public List<LuggageServiceProviderResponseDto> getLuggageServicesByProviderId(Long providerId) {
-		// TODO Auto-generated method stub
-		return null;
-	}
+    @Override
+    public List<LuggageServiceProviderResponseDto> getLuggageServicesByProviderId(Long providerId) {
+        // TODO: implementazione reale
+        return Collections.emptyList();
+    }
 }

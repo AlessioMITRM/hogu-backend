@@ -1,5 +1,6 @@
 package us.hogu.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import javax.persistence.Column;
@@ -40,5 +41,5 @@ public class BnbRoomPriceCalendar {
     private LocalDate endDate;
 
     @Column(nullable = false)
-    private Double pricePerNight;
+    private BigDecimal pricePerNight;
 }

@@ -8,6 +8,8 @@ import lombok.Data;
 public class VehicleRequestDto {
 	
 	private Long id;
+	
+	private Integer numberOfSeats;
 
     private String plateNumber; 
     

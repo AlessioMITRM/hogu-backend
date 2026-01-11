@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
@@ -26,6 +27,6 @@ public class BnbBookingResponseDto {
     private LocalDate checkOutDate;
     private Integer numberOfGuests;
     private BookingStatus status;
-    private Double totalAmount;
+    private BigDecimal totalAmount;
     private OffsetDateTime creationDate;
 }

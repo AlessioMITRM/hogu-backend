@@ -3,7 +3,8 @@ package us.hogu.model.enums;
 public enum PaymentStatus {
     PENDING("IN_ATTESA"),
     COMPLETED("COMPLETATO"),
-    FAILED("FALLITO");
+    FAILED("FALLITO"),
+	REFUNDED("RIMBORSATO");
     
     private final String italianValue;
     

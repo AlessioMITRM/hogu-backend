@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import us.hogu.model.enums.ServiceType;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 
@@ -21,9 +22,9 @@ public class CommissionSettingResponseDto {
     
 	private ServiceType serviceType;
     
-	private Double commissionRate;
+	private BigDecimal commissionRate;
     
-	private Double minCommissionAmount;
+	private BigDecimal minCommissionAmount;
     
 	private OffsetDateTime effectiveFrom;
     

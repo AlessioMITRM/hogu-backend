@@ -198,6 +198,22 @@ public enum ErrorConstants {
             "Nessun Documento associato all'account fornitore è stato trovato",
             ""
     ),
+    RESTAURANT_NOT_FOUND(
+            "Nessun ristorante trovato",
+            ""
+    ),
+    SERVICE_BNB_NOT_FOUND(
+            "Nessun bnb trovato",
+            ""
+    ),
+    INVALID_AMOUNT(
+            "L'importo non è valido",
+            ""
+    ),
+    BOOKING_RESTAURANT_NOT_FOUND(
+            "Nessuna prenotazione del ristorante è stata trovata",
+            ""
+    ),
     DOCUMENT_NOT_FOUND(
             "Nessun Documento Trovato",
             ""

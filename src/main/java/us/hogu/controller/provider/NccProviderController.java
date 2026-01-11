@@ -33,6 +33,9 @@ import lombok.RequiredArgsConstructor;
 import us.hogu.configuration.security.dto.UserAccount;
 import us.hogu.controller.dto.request.NccServiceRequestDto;
 import us.hogu.controller.dto.response.BnbBookingResponseDto;
+import us.hogu.controller.dto.response.InfoStatsDto;
+import us.hogu.controller.dto.response.LuggageServiceDetailResponseDto;
+import us.hogu.controller.dto.response.NccDetailResponseDto;
 import us.hogu.controller.dto.response.NccManagementResponseDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
 import us.hogu.repository.projection.NccManagementProjection;
@@ -47,6 +50,32 @@ public class NccProviderController {
     private final NccService nccService;
 
 
+    @GetMapping("/get-info")
+    @Operation(summary = "Statistiche deposito bagagli", description = "Restituisce le statistiche del deposito bagagli del provider autenticato")
+    public ResponseEntity<InfoStatsDto> getInfo(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserAccount userAccount
+    ) {
+        return ResponseEntity.ok(nccService.getInfo(userAccount.getAccountId()));
+    }
+    
+    @GetMapping("/{serviceId}")
+    @Operation(summary = "Dettagli deposito per modifica", description = "Recupera tutti i dati di un deposito bagagli per la pagina di modifica (solo proprietario)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Dettagli recuperati"),
+        @ApiResponse(responseCode = "403", description = "Non autorizzato"),
+        @ApiResponse(responseCode = "404", description = "Deposito non trovato")
+    })
+    public ResponseEntity<NccDetailResponseDto> getLuggageServiceForEdit(
+            @AuthenticationPrincipal UserAccount userAccount,
+            @PathVariable Long serviceId) {
+
+    	NccDetailResponseDto response = nccService.getNccServiceByServiceIdAndProviderId(
+                serviceId, userAccount.getAccountId());
+
+        return ResponseEntity.ok(response);
+    }
+    
     @GetMapping("/my-services")
     @Operation(summary = "I miei servizi NCC (paginati)", description = "Restituisce la lista dei servizi NCC del fornitore autenticato con supporto alla paginazione")
     public ResponseEntity<Page<NccManagementResponseDto>> getProviderNccServices(
@@ -94,15 +123,15 @@ public class NccProviderController {
     
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Aggiorna servizio NCC", description = "Aggiorna un nuovo servizio NCC")
-    public ResponseEntity<ServiceDetailResponseDto> updateNccService(
+    public ResponseEntity<NccDetailResponseDto> updateNccService(
             @Parameter(hidden = true)
             @AuthenticationPrincipal UserAccount userAccount,
             @Parameter(description = "ID del servizio NCC") @PathVariable Long id,
-            @RequestPart("data") @Valid NccServiceRequestDto requestDto,
+            @RequestPart("service") @Valid NccServiceRequestDto requestDto,
             @RequestPart(value = "images", required = false) List<MultipartFile> images) 
     throws Exception 
     {
-        ServiceDetailResponseDto response = nccService.updateNccService(userAccount.getAccountId(), id, requestDto, images);
+        NccDetailResponseDto response = nccService.updateNccService(userAccount.getAccountId(), id, requestDto, images);
         
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

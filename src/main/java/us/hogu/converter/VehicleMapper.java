@@ -31,6 +31,7 @@ public class VehicleMapper {
 
         return VehicleEntity.builder()
                 .id(dto.getId())
+                .numberOfSeats(dto.getNumberOfSeats())
                 .plateNumber(dto.getPlateNumber())
                 .model(dto.getModel())
                 .type(dto.getType())

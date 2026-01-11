@@ -1,5 +1,6 @@
 package us.hogu.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 
@@ -32,7 +33,7 @@ public class Payout {
     @JoinColumn(name = "provider_id")
     private User provider;
     
-    private Double amount;
+    private BigDecimal amount;
     
     private PaymentStatus status;
     

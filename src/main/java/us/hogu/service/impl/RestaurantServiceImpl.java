@@ -17,10 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import us.hogu.common.constants.ErrorConstants;
+import us.hogu.controller.dto.response.InfoStatsDto;
 import us.hogu.controller.dto.request.RestaurantBookingRequestDto;
 import us.hogu.controller.dto.request.RestaurantServiceRequestDto;
 import us.hogu.controller.dto.response.RestaurantBookingResponseDto;
 import us.hogu.controller.dto.response.RestaurantManagementResponseDto;
+import us.hogu.controller.dto.response.RestaurantServiceDetailResponseDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
 import us.hogu.controller.dto.response.ServiceSummaryResponseDto;
 import us.hogu.converter.BookingMapper;
@@ -156,11 +158,12 @@ public class RestaurantServiceImpl implements RestaurantService {
 
         entity.setName(request.getName());
         entity.setDescription(request.getDescription());
+        entity.setMenu(request.getMenu());
         entity.setCapacity(request.getCapacity());
         entity.setBasePrice(request.getBasePrice());
-        entity.setPublicationStatus(request.getPublicationStatus());
         entity.setLocales(serviceLocaleMapper.mapRequestToEntity(request.getLocales()));
-        
+        entity.setPublicationStatus(request.getPublicationStatus());
+
         fileService.updateImages(entity.getId(), ServiceType.RESTAURANT, entity.getImages(), images);
 
         RestaurantServiceEntity updatedRestaurant = restaurantServiceRepository.save(entity);
@@ -406,5 +409,31 @@ public class RestaurantServiceImpl implements RestaurantService {
         if (numberOfPeople > restaurant.getCapacity()) {
             throw new ValidationException(ErrorConstants.LIMIT_MAX_PEOPLE_RESTURANT.name(), ErrorConstants.LIMIT_MAX_PEOPLE_RESTURANT.getMessage());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InfoStatsDto getInfo(Long providerId) {
+        RestaurantServiceEntity entity = restaurantServiceRepository.findByProviderIdForSingleService(providerId)
+                .orElseThrow(() -> new ValidationException(
+                        ErrorConstants.RESTURANT_NOT_FOUND.name(),
+                        ErrorConstants.RESTURANT_NOT_FOUND.getMessage()));
+
+        InfoStatsDto infoStats = restaurantServiceRepository.getInfoStatsByProviderId(providerId);
+        infoStats.setServiceId(entity.getId());
+
+        return infoStats;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RestaurantServiceDetailResponseDto getRestaurantServiceByIdAndProvider(Long serviceId, Long providerId) {
+        String language = LocaleContextHolder.getLocale().getLanguage();
+        RestaurantServiceEntity entity = restaurantServiceRepository.findDetailByIdAndProvider(serviceId, providerId, language)
+                .orElseThrow(() -> new ValidationException(
+                        ErrorConstants.RESTURANT_NOT_FOUND.name(),
+                        "Ristorante non trovato o non appartiene al provider."));
+
+        return restaurantServiceMapper.toProviderDetailDto(entity);
     }
 }

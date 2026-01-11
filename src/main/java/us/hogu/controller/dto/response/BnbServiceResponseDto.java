@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -13,7 +14,7 @@ public class BnbServiceResponseDto {
     private Long id;
     private String name;
     private String description;
-    private Double defaultPricePerNight;
+    private BigDecimal defaultPricePerNight;
     private Integer totalRooms;
     private Integer maxGuestsForRoom;
     private List<String> images;

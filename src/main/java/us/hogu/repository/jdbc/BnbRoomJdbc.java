@@ -6,7 +6,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
-
 import lombok.RequiredArgsConstructor;
 import us.hogu.controller.dto.request.BnbSearchRequestDto;
 import us.hogu.controller.dto.response.BnbRoomResponseDto;
@@ -17,10 +16,13 @@ import us.hogu.model.BnbRoom;
 import us.hogu.model.enums.ServiceType;
 import us.hogu.repository.jpa.BnbRoomJpa;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,14 +30,20 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Repository
 public class BnbRoomJdbc {
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final BnbRoomJpa bnbRoomJpa;
 
-    public Page<BnbSearchResultDto> searchNative(BnbSearchRequestDto request, Pageable pageable, String language) {
+    private static final BigDecimal ZERO = BigDecimal.ZERO;
+    private static final int MONEY_SCALE = 2;
+
+    public Page<BnbSearchResultDto> searchNative(
+            BnbSearchRequestDto request,
+            Pageable pageable,
+            String language) {
 
         String cityParam = null;
         String stateParam = null;
-
         if (request.getLocation() != null && !request.getLocation().trim().isEmpty()) {
             String[] parts = request.getLocation().split(",");
             cityParam = parts[0].trim();
@@ -64,23 +72,21 @@ public class BnbRoomJdbc {
             sql.append(" AND (LOWER(CAST(r.name AS TEXT)) LIKE LOWER(:searchTerm) ")
                .append(" OR LOWER(CAST(sl.address AS TEXT)) LIKE LOWER(:searchTerm)) ");
         }
-
         if (cityParam != null) {
             sql.append(" AND LOWER(CAST(sl.city AS TEXT)) LIKE LOWER(:city) ");
         }
-
         if (stateParam != null) {
             sql.append(" AND LOWER(CAST(sl.state AS TEXT)) LIKE LOWER(:state) ");
         }
 
-        // Controllo disponibilità tramite BnbRoomAvailability
+        // Controllo disponibilità
         if (request.getCheckIn() != null && request.getCheckOut() != null) {
             sql.append(" AND NOT EXISTS ( ");
-            sql.append("     SELECT 1 FROM hogu.bnb_room_availability a ");
-            sql.append("     WHERE a.room_id = r.id ");
-            sql.append("       AND a.date >= :checkIn ");
-            sql.append("       AND a.date < :checkOut ");
-            sql.append("       AND a.occupied_capacity >= a.capacity ");
+            sql.append("   SELECT 1 FROM hogu.bnb_room_availability a ");
+            sql.append("   WHERE a.room_id = r.id ");
+            sql.append("     AND a.date >= :checkIn ");
+            sql.append("     AND a.date < :checkOut ");
+            sql.append("     AND a.occupied_capacity >= a.capacity ");
             sql.append(" ) ");
         }
 
@@ -89,7 +95,7 @@ public class BnbRoomJdbc {
 
         String selectSql =
                 "SELECT DISTINCT r.id, r.name, r.description, r.base_price_per_night, r.max_guests, " +
-                "bs.images, sl.country, sl.state, sl.city, sl.address " +
+                "       bs.images, sl.country, sl.state, sl.city, sl.address " +
                 sql +
                 " ORDER BY r.base_price_per_night ASC " +
                 " LIMIT :limit OFFSET :offset";
@@ -104,40 +110,42 @@ public class BnbRoomJdbc {
     }
 
     public BnbRoomResponseDto getRoomById(Long id, LocalDate checkIn, LocalDate checkOut, String language) {
-
         BnbRoom entity = bnbRoomJpa.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Servizio B&B non trovato"));
 
         Long roomId = entity.getId();
         Long serviceId = entity.getBnbService().getId();
+        BigDecimal basePrice = entity.getBasePricePerNight();
 
-        Double basePrice = entity.getBasePricePerNight();
-        double totalPrice = calculateTotalPrice(roomId, basePrice, checkIn, checkOut);
+        BigDecimal totalPrice = calculateTotalPrice(roomId, basePrice, checkIn, checkOut);
 
         long nights = (checkIn != null && checkOut != null)
                 ? ChronoUnit.DAYS.between(checkIn, checkOut)
                 : 0;
-        double pricePerNight = nights > 0 ? totalPrice / nights : basePrice;
 
-        // Controllo disponibilità tramite NamedParameterJdbcTemplate
+        BigDecimal pricePerNight = (nights > 0)
+                ? totalPrice.divide(BigDecimal.valueOf(nights), MONEY_SCALE, RoundingMode.HALF_UP)
+                : basePrice;
+
+        // Controllo disponibilità
         boolean available = true;
         if (checkIn != null && checkOut != null) {
             String sqlAvailability =
-                "SELECT occupied_capacity FROM bnb_room_availability " +
-                "WHERE room_id = :roomId AND date >= :checkIn AND date < :checkOut";
+                    "SELECT occupied_capacity FROM bnb_room_availability " +
+                    "WHERE room_id = :roomId AND date >= :checkIn AND date < :checkOut";
 
-            MapSqlParameterSource availabilityParams = new MapSqlParameterSource();
-            availabilityParams.addValue("roomId", roomId);
-            availabilityParams.addValue("checkIn", checkIn);
-            availabilityParams.addValue("checkOut", checkOut);
+            MapSqlParameterSource availabilityParams = new MapSqlParameterSource()
+                    .addValue("roomId", roomId)
+                    .addValue("checkIn", checkIn)
+                    .addValue("checkOut", checkOut);
 
-            List<Long> bookedCounts = jdbcTemplate.queryForList(
-                sqlAvailability,
-                availabilityParams,
-                Long.class
+            List<Integer> bookedCounts = jdbcTemplate.queryForList(
+                    sqlAvailability,
+                    availabilityParams,
+                    Integer.class
             );
 
-            for (Long count : bookedCounts) {
+            for (Integer count : bookedCounts) {
                 if (count >= entity.getMaxGuests()) {
                     available = false;
                     break;
@@ -145,7 +153,7 @@ public class BnbRoomJdbc {
             }
         }
 
-        List<String> images = entity.getImages();
+        List<String> images = entity.getImages() != null ? entity.getImages() : List.of();
         List<ServiceLocaleResponseDto> locales = loadLocalesForLanguage(roomId, language);
 
         return BnbRoomResponseDto.builder()
@@ -167,15 +175,17 @@ public class BnbRoomJdbc {
             throws SQLException {
 
         Long roomId = rs.getLong("id");
-        Double basePrice = rs.getDouble("base_price_per_night");
+        BigDecimal basePrice = rs.getBigDecimal("base_price_per_night");
 
-        double totalPrice = calculateTotalPrice(roomId, basePrice, checkIn, checkOut);
+        BigDecimal totalPrice = calculateTotalPrice(roomId, basePrice, checkIn, checkOut);
 
         long nights = (checkIn != null && checkOut != null)
                 ? ChronoUnit.DAYS.between(checkIn, checkOut)
                 : 0;
 
-        double pricePerNight = nights > 0 ? totalPrice / nights : basePrice;
+        BigDecimal pricePerNight = (nights > 0)
+                ? totalPrice.divide(BigDecimal.valueOf(nights), MONEY_SCALE, RoundingMode.HALF_UP)
+                : basePrice;
 
         return BnbSearchResultDto.builder()
                 .id(String.valueOf(roomId))
@@ -189,13 +199,15 @@ public class BnbRoomJdbc {
                 .build();
     }
 
-    private double calculateTotalPrice(Long roomId, Double basePrice, LocalDate checkIn, LocalDate checkOut) {
-
-        if (checkIn == null || checkOut == null) {
-            return basePrice;
+    private BigDecimal calculateTotalPrice(Long roomId, BigDecimal basePrice, LocalDate checkIn, LocalDate checkOut) {
+        if (checkIn == null || checkOut == null || basePrice == null) {
+            return basePrice != null ? basePrice : ZERO;
         }
 
         long days = ChronoUnit.DAYS.between(checkIn, checkOut);
+        if (days <= 0) {
+            return basePrice;
+        }
 
         String sql =
                 "SELECT start_date, end_date, price_per_night " +
@@ -203,7 +215,7 @@ public class BnbRoomJdbc {
                 "WHERE room_id = :roomId " +
                 "  AND end_date >= :checkIn " +
                 "  AND start_date <= :checkOut " +
-                "ORDER BY start_date ";
+                "ORDER BY start_date";
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("roomId", roomId)
@@ -216,21 +228,21 @@ public class BnbRoomJdbc {
                 (rs, row) -> new PriceRange(
                         rs.getDate("start_date").toLocalDate(),
                         rs.getDate("end_date").toLocalDate(),
-                        rs.getDouble("price_per_night"))
+                        rs.getBigDecimal("price_per_night")
+                )
         );
 
-        double total = 0;
-
+        BigDecimal total = ZERO;
         for (long i = 0; i < days; i++) {
             LocalDate day = checkIn.plusDays(i);
+            
+            BigDecimal dayPrice = ranges.stream()
+            	    .filter(r -> !day.isBefore(r.getStart()) && !day.isAfter(r.getEnd()))
+            	    .map(r -> r.getPrice())
+            	    .findFirst()
+            	    .orElse(basePrice);
 
-            Double price = ranges.stream()
-                    .filter(r -> !day.isBefore(r.getStart()) && !day.isAfter(r.getEnd()))
-                    .map(PriceRange::getPrice)
-                    .findFirst()
-                    .orElse(basePrice);
-
-            total += price;
+            total = total.add(dayPrice);
         }
 
         return total;
@@ -239,21 +251,20 @@ public class BnbRoomJdbc {
     private static class PriceRange {
         private final LocalDate start;
         private final LocalDate end;
-        private final double price;
+        private final BigDecimal price;
 
-        public PriceRange(LocalDate start, LocalDate end, double price) {
+        public PriceRange(LocalDate start, LocalDate end, BigDecimal price) {
             this.start = start;
             this.end = end;
-            this.price = price;
+            this.price = price != null ? price : ZERO;
         }
 
         public LocalDate getStart() { return start; }
         public LocalDate getEnd() { return end; }
-        public double getPrice() { return price; }
+        public BigDecimal getPrice() { return price; }
     }
 
     private List<ServiceLocaleResponseDto> loadLocalesForLanguage(Long roomId, String language) {
-
         String sql =
                 "SELECT sl.id, bs.id AS service_id, sl.service_type, sl.language, " +
                 "       sl.country, sl.state, sl.city, sl.address " +
@@ -283,11 +294,16 @@ public class BnbRoomJdbc {
     }
 
     private List<String> parseImages(String raw) {
-        if (raw == null) return List.of();
-        raw = raw.replace("{", "").replace("}", "");
-        if (raw.trim().isEmpty()) return List.of();
+        if (raw == null || raw.trim().isEmpty()) {
+            return List.of();
+        }
+        raw = raw.replace("{", "").replace("}", "").trim();
+        if (raw.isEmpty()) {
+            return List.of();
+        }
         return Arrays.stream(raw.split(","))
                 .map(String::trim)
+                .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
     }
 }

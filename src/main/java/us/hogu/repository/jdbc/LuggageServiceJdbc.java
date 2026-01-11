@@ -104,7 +104,7 @@ public class LuggageServiceJdbc {
                 .description(rs.getString("description"))
                 .address(rs.getString("address"))
                 .location(rs.getString("city"))
-                .price(rs.getDouble("base_price"))
+                .price(rs.getBigDecimal("base_price"))
                 .imageUrl(firstImage)
                 .build();
     }

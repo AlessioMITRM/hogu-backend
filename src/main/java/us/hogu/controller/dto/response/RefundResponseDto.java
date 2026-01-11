@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import lombok.Data;
@@ -11,7 +12,7 @@ public class RefundResponseDto {
     
     private Long paymentId;
     
-    private Double amount;
+    private BigDecimal amount;
     
     private PaymentStatus status;
     

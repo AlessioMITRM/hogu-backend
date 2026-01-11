@@ -1,5 +1,6 @@
 package us.hogu.model;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -46,7 +47,7 @@ public class BnbRoom {
 
     private Integer maxGuests;
 
-    private Double basePricePerNight;
+    private BigDecimal basePricePerNight;
 
     private Boolean available;
 

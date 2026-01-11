@@ -18,6 +18,8 @@ import us.hogu.common.constants.ErrorConstants;
 import us.hogu.exception.ValidationException;
 
 import javax.annotation.PostConstruct;
+
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -147,7 +149,7 @@ public class PayPalServiceImpl implements PayPalService {
                 return PaymentResponseDto.builder()
                     .paymentStatus(PaymentStatus.COMPLETED)
                     .paymentIdIntent(executedPayment.getId())
-                    .amount(Double.parseDouble(executedPayment.getTransactions().get(0).getAmount().getTotal()))
+                    .amount(new BigDecimal(executedPayment.getTransactions().get(0).getAmount().getTotal()))
                     .currency(executedPayment.getTransactions().get(0).getAmount().getCurrency())
                     .build();
             } else {
@@ -176,7 +178,7 @@ public class PayPalServiceImpl implements PayPalService {
             return PaymentResponseDto.builder()
                 .paymentStatus(status)
                 .paymentIdIntent(payment.getId())
-                .amount(Double.parseDouble(payment.getTransactions().get(0).getAmount().getTotal()))
+                .amount(new BigDecimal(payment.getTransactions().get(0).getAmount().getTotal()))
                 .currency(payment.getTransactions().get(0).getAmount().getCurrency())
                 .build();
 

@@ -9,7 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-import us.hogu.controller.dto.response.InfoStatsDto;
+import us.hogu.controller.dto.response.ClubInfoStatsDto;
 import us.hogu.model.ClubBooking;
 import us.hogu.model.enums.BookingStatus;
 

@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import us.hogu.controller.dto.response.InfoStatsDto;
+import us.hogu.model.LuggageServiceEntity;
 import us.hogu.model.NccServiceEntity;
 import us.hogu.model.User;
 import us.hogu.repository.projection.NccDetailProjection;
@@ -55,11 +57,12 @@ public interface NccServiceJpa extends JpaRepository<NccServiceEntity, Long> {
     Page<NccServiceEntity> findByProviderId(Long providerId, Pageable page);
     
     // FORNITORE - dettaglio servizio NCC per modifica
-    @Query("SELECT n.id as id, n.name as name, n.description as description, n.vehiclesAvailable as vehiclesAvailable, " +
-           "n.basePrice as basePrice, n.locales as locales, n.images as images, " +
-           "n.publicationStatus as publicationStatus, n.creationDate as creationDate " +
-           "FROM NccServiceEntity n WHERE n.id = :id AND n.user.id = :providerId")
-    Optional<NccServiceEntity> findDetailByIdAndProvider(Long id, Long providerId);
+    @Query("SELECT n " +
+           "FROM NccServiceEntity n " + 
+		   "LEFT JOIN FETCH n.locales loc " +
+    	   "WHERE n.id = :id AND n.user.id = :providerId " +
+		   "AND (:language IS NULL OR LOWER(loc.language) = LOWER(:language))")
+    Optional<NccServiceEntity> findDetailByIdAndProvider(@Param("id") Long id, @Param("providerId") Long providerId, @Param("language") String language);
     
     // FORNITORE - servizi NCC attivi del fornitore
     @Query("SELECT n FROM NccServiceEntity n " +
@@ -76,6 +79,7 @@ public interface NccServiceJpa extends JpaRepository<NccServiceEntity, Long> {
     
     // Controlli esistenza e autorizzazioni
     boolean existsByIdAndUserId(Long id, Long providerId);
+    
     boolean existsByIdAndPublicationStatusTrue(Long id);
     
     // Ricerca per range di prezzo
@@ -104,4 +108,15 @@ public interface NccServiceJpa extends JpaRepository<NccServiceEntity, Long> {
     @Query("SELECT n FROM NccServiceEntity n LEFT JOIN NccBooking b ON b.nccService = n " +
             "WHERE n.publicationStatus = true GROUP BY n ORDER BY COUNT(b) DESC")
     List<NccServiceEntity> findPopularActiveServices();
+    
+	@Query("SELECT new us.hogu.controller.dto.response.InfoStatsDto(" +
+            "   CAST(NULL as java.lang.Long), " +
+            "   (SELECT COUNT(b) FROM NccBooking b WHERE b.nccService.user.id = :providerId), " +
+            "   (SELECT COALESCE(SUM(b.totalAmount), 0) FROM NccBooking b WHERE b.nccService.user.id = :providerId) " +
+            ") " +
+            "FROM User u WHERE u.id = :providerId")
+	InfoStatsDto getInfoStatsByProviderId(@Param("providerId") Long providerId);
+	
+	@Query("SELECT n FROM NccServiceEntity n WHERE n.user.id = :providerId")
+	Optional<NccServiceEntity> findByProviderIdForSingleService(Long providerId);
 }

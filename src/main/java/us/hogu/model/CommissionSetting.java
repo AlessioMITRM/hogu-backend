@@ -1,5 +1,6 @@
 package us.hogu.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 
@@ -34,9 +35,9 @@ public class CommissionSetting {
     
     private ServiceType serviceType;
     
-    private Double commissionRate;
+    private BigDecimal commissionRate;
     
-    private Double minCommissionAmount;
+    private BigDecimal minCommissionAmount;
     
     private OffsetDateTime effectiveFrom;
     

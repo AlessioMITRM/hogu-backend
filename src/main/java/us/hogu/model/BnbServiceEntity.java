@@ -1,5 +1,6 @@
 package us.hogu.model;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -50,7 +51,7 @@ public class BnbServiceEntity {
     private String description;
 
     @Column(nullable = false)
-    private Double defaultPricePerNight; // Prezzo base fallback
+    private BigDecimal defaultPricePerNight;
 
     @Column(nullable = false)
     private Integer totalRooms;

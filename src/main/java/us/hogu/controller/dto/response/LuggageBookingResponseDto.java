@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import javax.persistence.Column;
@@ -21,7 +22,7 @@ public class LuggageBookingResponseDto {
     private Long serviceId;
     private String serviceName;
     private BookingStatus status;
-    private Double totalAmount;
+    private BigDecimal totalAmount;
     private OffsetDateTime creationDate;
     
     // Campi specifici bagagli

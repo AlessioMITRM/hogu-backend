@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import lombok.AllArgsConstructor;
@@ -23,7 +24,7 @@ public class ClubManagementResponseDto {
     
     private Long maxCapacity;
     
-    private Double basePrice;
+    private BigDecimal basePrice;
 
     private List<String> images;
     

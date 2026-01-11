@@ -1,5 +1,7 @@
 package us.hogu.controller.dto.request;
 
+import java.math.BigDecimal;
+
 import javax.validation.constraints.NotBlank;
 
 import io.micrometer.core.lang.NonNull;
@@ -12,8 +14,8 @@ public class CommissionUpdateRequestDto {
 	private ServiceType serviceType;
 	
 	@NonNull
-	private Double commissionRate;
+	private BigDecimal commissionRate;
 	
 	@NonNull
-	private Double minCommissionAmount;
+	private BigDecimal minCommissionAmount;
 }

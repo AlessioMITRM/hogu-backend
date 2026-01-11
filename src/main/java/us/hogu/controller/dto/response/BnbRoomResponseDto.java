@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import lombok.Builder;
@@ -14,8 +15,8 @@ public class BnbRoomResponseDto {
     private String providerName;
     private String description;
     private Integer maxGuests;
-    private Double totalPrice;
-    private Double priceForNight;
+    private BigDecimal totalPrice;
+    private BigDecimal priceForNight;
     private Boolean available;
     private List<String> images;
     private List<ServiceLocaleResponseDto> serviceLocale;

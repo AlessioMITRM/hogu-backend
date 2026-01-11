@@ -1,5 +1,7 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
+
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -11,7 +13,7 @@ public class EventPricingConfigurationResponseDto {
     private Long id;
     private PricingType pricingType;
     private String description;
-    private Double price;
+    private BigDecimal price;
     private Integer capacity;
     private Boolean isActive;
 }

@@ -32,6 +32,8 @@ import lombok.RequiredArgsConstructor;
 import us.hogu.common.constants.ErrorConstants;
 import us.hogu.configuration.security.dto.UserAccount;
 import us.hogu.controller.dto.request.LuggageServiceRequestDto;
+import us.hogu.controller.dto.response.ClubInfoStatsDto;
+import us.hogu.controller.dto.response.InfoStatsDto;
 import us.hogu.controller.dto.response.LuggageBookingResponseDto;
 import us.hogu.controller.dto.response.LuggageServiceDetailResponseDto;
 import us.hogu.controller.dto.response.LuggageServiceProviderResponseDto;
@@ -41,13 +43,43 @@ import us.hogu.exception.ValidationException;
 import us.hogu.service.intefaces.LuggageService;
 
 @RestController
-@RequestMapping("/api/services/luggage/provider")
+@RequestMapping("/api/provider/services/luggage")
 @RequiredArgsConstructor
 @Tag(name = "Luggage Services Provider", description = "APIs per gestione servizi deposito bagagli per Fornitore")
 @PreAuthorize("hasRole('PROVIDER')")
 public class LuggageProviderController {
 
     private final LuggageService luggageService;
+
+
+    @GetMapping("/get-info")
+    @Operation(summary = "Statistiche deposito bagagli", description = "Restituisce le statistiche del deposito bagagli del provider autenticato")
+    public ResponseEntity<InfoStatsDto> getInfo(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserAccount userAccount
+    ) {
+        return ResponseEntity.ok(luggageService.getInfo(userAccount.getAccountId()));
+    }
+
+    /**
+     * RECUPERO singolo deposito per modifica (frontend edit page)
+     */
+    @GetMapping("/{serviceId}")
+    @Operation(summary = "Dettagli deposito per modifica", description = "Recupera tutti i dati di un deposito bagagli per la pagina di modifica (solo proprietario)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Dettagli recuperati"),
+        @ApiResponse(responseCode = "403", description = "Non autorizzato"),
+        @ApiResponse(responseCode = "404", description = "Deposito non trovato")
+    })
+    public ResponseEntity<LuggageServiceDetailResponseDto> getLuggageServiceForEdit(
+            @AuthenticationPrincipal UserAccount userAccount,
+            @PathVariable Long serviceId) {
+
+    	LuggageServiceDetailResponseDto response = luggageService.getLuggageServiceByIdAndProvider(
+                serviceId, userAccount.getAccountId());
+
+        return ResponseEntity.ok(response);
+    }
 
     /**
      * Lista paginata di tutti i depositi bagagli del provider autenticato
@@ -147,23 +179,5 @@ public class LuggageProviderController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * RECUPERO singolo deposito per modifica (frontend edit page)
-     */
-    @GetMapping("/{serviceId}")
-    @Operation(summary = "Dettagli deposito per modifica", description = "Recupera tutti i dati di un deposito bagagli per la pagina di modifica (solo proprietario)")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Dettagli recuperati"),
-        @ApiResponse(responseCode = "403", description = "Non autorizzato"),
-        @ApiResponse(responseCode = "404", description = "Deposito non trovato")
-    })
-    public ResponseEntity<LuggageServiceProviderResponseDto> getLuggageServiceForEdit(
-            @AuthenticationPrincipal UserAccount userAccount,
-            @PathVariable Long serviceId) {
 
-        LuggageServiceProviderResponseDto response = luggageService.getLuggageServiceByIdAndProvider(
-                serviceId, userAccount.getAccountId());
-
-        return ResponseEntity.ok(response);
-    }
 }

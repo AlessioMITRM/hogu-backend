@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import us.hogu.model.enums.ServiceType;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -13,7 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PayPalPaymentRequestDto {
-    private Double amount;
+    private BigDecimal amount;
     private String currency;
     private Long bookingId;
     private Long userId;
@@ -29,7 +30,7 @@ public class PayPalPaymentRequestDto {
     public static class PayPalItem {
         private String name;
         private String description;
-        private Double price;
+        private BigDecimal price;
         private Integer quantity;
         private String sku;
     }

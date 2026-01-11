@@ -1,5 +1,6 @@
 package us.hogu.model;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import javax.persistence.Entity;
@@ -58,7 +59,7 @@ public abstract class Booking {
     
     @NotNull(message = "L'importo totale è obbligatorio")
     @Column(nullable = false)
-    private Double totalAmount;
+    private BigDecimal totalAmount;
     
     private String billingFirstName;
     

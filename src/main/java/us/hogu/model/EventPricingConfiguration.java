@@ -1,5 +1,7 @@
 package us.hogu.model;
 
+import java.math.BigDecimal;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -50,7 +52,7 @@ public class EventPricingConfiguration {
     @NotNull(message = "Il prezzo è obbligatorio")
     @PositiveOrZero(message = "Il prezzo deve essere positivo o zero")
     @Column(nullable = false)
-    private Double price;
+    private BigDecimal price;
     
     @Positive(message = "La capacità deve essere positiva")
     @Column

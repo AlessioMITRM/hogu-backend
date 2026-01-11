@@ -1,5 +1,6 @@
 package us.hogu.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -43,10 +44,10 @@ public class LuggageSizePrice {
     private String sizeLabel; // SMALL, MEDIUM, LARGE, EXTRA_LARGE
 
     @Column(nullable = false)
-    private Double pricePerHour;
+    private BigDecimal pricePerHour;
 
     @Column(nullable = false)
-    private Double pricePerDay;
+    private BigDecimal pricePerDay;
 
     private String description; // opzionale, per dettagli (es. "fino a 15 kg")
 }

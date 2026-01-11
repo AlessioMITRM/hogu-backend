@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import lombok.Data;
@@ -10,9 +11,9 @@ public class AppliedCommissionResponseDto {
     
     private Long bookingId;
     
-    private Double commissionAmount;
+    private BigDecimal commissionAmount;
     
-    private Double commissionRateApplied;
+    private BigDecimal commissionRateApplied;
     
     private OffsetDateTime calculatedAt;
 }

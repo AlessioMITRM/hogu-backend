@@ -1,6 +1,8 @@
 package us.hogu.service.impl;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
@@ -184,7 +186,7 @@ public class BnbServiceImpl implements BnbService {
                 .orElseThrow(() -> new ResourceNotFoundException("Camera non trovata"));
         BnbServiceEntity service = room.getBnbService();
 
-        double totalAmount = calculateTotalAmount(room, checkIn, checkOut);
+        BigDecimal totalAmount = calculateTotalAmount(room, checkIn, checkOut);
 
         BnbBooking booking = BnbBooking.builder()
                 .user(user)
@@ -248,27 +250,45 @@ public class BnbServiceImpl implements BnbService {
 		return null;
 	}
 
-    private double calculateTotalAmount(BnbRoom room, LocalDate checkIn, LocalDate checkOut) {
-        List<BnbRoomPriceCalendar> calendar = bnbRoomPriceCalendarJpa.findByRoomId(room.getId());
-        double total = 0;
-        LocalDate date = checkIn;
+	private BigDecimal calculateTotalAmount(BnbRoom room, LocalDate checkIn, LocalDate checkOut) {
+	    if (checkIn == null || checkOut == null || checkIn.isAfter(checkOut)) {
+	        return BigDecimal.ZERO;
+	    }
 
-        while (date.isBefore(checkOut)) {
-            double priceForDay = room.getBasePricePerNight();
+	    // Meglio caricare solo i prezzi che possono interessare
+	    List<BnbRoomPriceCalendar> calendarEntries = bnbRoomPriceCalendarJpa
+	        .findOverlappingPriceRules(
+	            room.getId(),
+	            checkOut.minusDays(1),  // ultimo giorno da considerare
+	            checkIn
+	        );
 
-            for (BnbRoomPriceCalendar p : calendar) {
-                if (!date.isBefore(p.getStartDate()) && !date.isAfter(p.getEndDate())) {
-                    priceForDay = p.getPricePerNight();
-                    break;
-                }
-            }
+	    BigDecimal basePrice = room.getBasePricePerNight();
+	    if (basePrice == null) {
+	        basePrice = BigDecimal.ZERO;
+	    }
 
-            total += priceForDay;
-            date = date.plusDays(1);
-        }
+	    BigDecimal total = BigDecimal.ZERO;
+	    LocalDate current = checkIn;
 
-        return total;
-    }
+	    // Importante: usiamo isBefore(checkOut) → include la notte prima del check-out
+	    while (current.isBefore(checkOut)) {
+	        BigDecimal dayPrice = basePrice;
+
+	        for (BnbRoomPriceCalendar entry : calendarEntries) {
+	            if (!current.isBefore(entry.getStartDate()) && 
+	                !current.isAfter(entry.getEndDate())) {
+	                dayPrice = entry.getPricePerNight();
+	                break;  // assumiamo che non ci siano sovrapposizioni
+	            }
+	        }
+
+	        total = total.add(dayPrice);
+	        current = current.plusDays(1);
+	    }
+
+	    return total.setScale(2, RoundingMode.HALF_UP); // opzionale, ma buona pratica
+	}
     
 
     // Remaining existing methods...

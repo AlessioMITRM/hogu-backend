@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import us.hogu.controller.dto.response.InfoStatsDto;
+import us.hogu.controller.dto.response.ClubInfoStatsDto;
 import us.hogu.model.ClubServiceEntity;
 import us.hogu.model.EventClubServiceEntity;
 import us.hogu.model.User;
@@ -108,7 +108,7 @@ public interface ClubServiceJpa extends JpaRepository<ClubServiceEntity, Long> {
 	List<ClubServiceEntity> findByUser(User user);
 	
 	@Query(
-		    "SELECT new us.hogu.controller.dto.response.InfoStatsDto(" +
+		    "SELECT new us.hogu.controller.dto.response.ClubInfoStatsDto(" +
 		    "   c.id, " +
 		    "   (SELECT COUNT(b) FROM ClubBooking b WHERE b.clubService = c), " +
 		    "   (SELECT COALESCE(SUM(b.totalAmount), 0) FROM ClubBooking b WHERE b.clubService = c) " +
@@ -116,7 +116,7 @@ public interface ClubServiceJpa extends JpaRepository<ClubServiceEntity, Long> {
 		    "FROM ClubServiceEntity c " +
 		    "WHERE c.user.id = :providerId"
 		)
-		InfoStatsDto getInfoStatsByProviderId(@Param("providerId") Long providerId);
+		ClubInfoStatsDto getInfoStatsByProviderId(@Param("providerId") Long providerId);
 
 	@Query("SELECT e FROM EventClubServiceEntity e WHERE e.id = :eventId")
 	Optional<EventClubServiceEntity> findByEventsId(@Param("eventId") Long eventId);

@@ -9,6 +9,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
+import us.hogu.controller.dto.response.ClubInfoStatsDto;
+import us.hogu.controller.dto.response.InfoStatsDto;
 import us.hogu.controller.dto.request.LuggageBookingRequestDto;
 import us.hogu.controller.dto.request.LuggageSearchRequestDto;
 import us.hogu.controller.dto.request.LuggageServiceRequestDto;
@@ -52,9 +54,10 @@ public interface LuggageService {
 	LuggageServiceDetailResponseDto updateLuggageService(Long providerId, Long serviceId, LuggageServiceRequestDto requestDto,
 			List<MultipartFile> images) throws Exception;
 
-	LuggageServiceProviderResponseDto getLuggageServiceByIdAndProvider(Long serviceId, Long providerId);
+	LuggageServiceDetailResponseDto getLuggageServiceByIdAndProvider(Long serviceId, Long providerId);
 
 	List<LuggageServiceProviderResponseDto> getLuggageServicesByProviderId(Long providerId);
 
+	InfoStatsDto getInfo(Long providerId);
 
 }

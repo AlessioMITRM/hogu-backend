@@ -1,5 +1,7 @@
 package us.hogu.controller.dto.request;
 
+import java.math.BigDecimal;
+
 import javax.validation.constraints.NotBlank;
 
 import io.micrometer.core.lang.NonNull;
@@ -14,7 +16,7 @@ public class PaymentRequestDto {
 	private Long bookingId;
     
 	@NonNull
-	private Double amount;
+	private BigDecimal amount;
     
 	@NotBlank
     private String currency;

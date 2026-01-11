@@ -1,12 +1,14 @@
 package us.hogu.service.intefaces;
 
+import java.math.BigDecimal;
+
 import us.hogu.model.AppliedCommission;
 import us.hogu.model.CommissionSetting;
 import us.hogu.model.enums.ServiceType;
 
 public interface CommissionService {
     
-    Double calculateCommissionAmount(Double bookingAmount, ServiceType serviceType);
+	BigDecimal calculateCommissionAmount(BigDecimal bookingAmount, ServiceType serviceType);
     
     AppliedCommission calculateCommission(Object booking, ServiceType serviceType);
     

@@ -10,10 +10,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
+import us.hogu.controller.dto.response.InfoStatsDto;
 import us.hogu.controller.dto.request.RestaurantBookingRequestDto;
 import us.hogu.controller.dto.request.RestaurantServiceRequestDto;
 import us.hogu.controller.dto.response.RestaurantBookingResponseDto;
 import us.hogu.controller.dto.response.RestaurantManagementResponseDto;
+import us.hogu.controller.dto.response.RestaurantServiceDetailResponseDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
 import us.hogu.controller.dto.request.RestaurantAdvancedSearchRequestDto;
 import us.hogu.controller.dto.request.RestaurantAvailabilityRequestDto;
@@ -50,5 +52,9 @@ public interface RestaurantService {
 	RestaurantAvailabilityResponseDto checkRestaurantAvailability(Long restaurantId, RestaurantAvailabilityRequestDto availabilityRequest);
 
 	ServiceDetailResponseDto getRestaurantDetail(Long restaurantId, LocalDate date, Integer numberOfPeople);
+	
+	InfoStatsDto getInfo(Long providerId);
+
+	RestaurantServiceDetailResponseDto getRestaurantServiceByIdAndProvider(Long serviceId, Long providerId);
 
 }

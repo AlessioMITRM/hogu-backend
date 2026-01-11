@@ -3,6 +3,7 @@ package us.hogu.controller.dto.response;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -21,8 +22,8 @@ public class BnbSearchResponseDto {
         private String name;
         private List<ServiceLocaleResponseDto> locales;
         private String description;
-        private Double price;
-        private Double pricePerNight;
+        private BigDecimal price;
+        private BigDecimal pricePerNight;
         private Integer maxGuests;
         private Integer roomCount;
         private List<String> amenities;

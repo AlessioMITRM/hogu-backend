@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import lombok.AllArgsConstructor;
@@ -19,7 +20,7 @@ public class PayoutResponseDto {
     
     private Long providerId;
     
-    private Double amount;
+    private BigDecimal amount;
     
     private PaymentStatus status;
     

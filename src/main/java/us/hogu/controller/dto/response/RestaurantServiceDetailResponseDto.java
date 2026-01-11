@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import us.hogu.controller.dto.request.ServiceLocaleRequestDto;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -14,7 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class LuggageServiceDetailResponseDto {
+public class RestaurantServiceDetailResponseDto {
 
     private Long id;
 
@@ -23,6 +22,8 @@ public class LuggageServiceDetailResponseDto {
     private String description;
 
     private List<ServiceLocaleResponseDto> locales;
+
+    private String menu;
 
     private Integer capacity;
 
@@ -34,10 +35,5 @@ public class LuggageServiceDetailResponseDto {
 
     private List<String> images;
 
-    private List<LuggageSizePriceResponseDto> sizePrices;
-
-    private List<OpeningHourResponseDto> openingHours;
-
     private Long providerId;
-
 }

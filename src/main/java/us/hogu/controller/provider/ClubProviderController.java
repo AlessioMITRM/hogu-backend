@@ -41,7 +41,7 @@ import us.hogu.controller.dto.request.EventClubServiceRequestDto;
 import us.hogu.controller.dto.response.ClubBookingResponseDto;
 import us.hogu.controller.dto.response.ClubManagementResponseDto;
 import us.hogu.controller.dto.response.EventClubServiceResponseDto;
-import us.hogu.controller.dto.response.InfoStatsDto;
+import us.hogu.controller.dto.response.ClubInfoStatsDto;
 import us.hogu.controller.dto.response.RestaurantBookingResponseDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
 import us.hogu.model.EventClubServiceEntity;
@@ -58,7 +58,7 @@ public class ClubProviderController {
     
     @GetMapping("/get-info")
     @Operation(summary = "Eventi del club (paginato)", description = "Restituisce gli eventi associati a un club con supporto alla paginazione")
-    public ResponseEntity<InfoStatsDto> getInfo(
+    public ResponseEntity<ClubInfoStatsDto> getInfo(
             @Parameter(hidden = true)
             @AuthenticationPrincipal UserAccount userAccount
     ) {

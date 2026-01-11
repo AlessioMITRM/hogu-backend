@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import us.hogu.controller.dto.response.ClubInfoStatsDto;
+import us.hogu.controller.dto.response.InfoStatsDto;
 import us.hogu.model.LuggageServiceEntity;
 import us.hogu.model.User;
 
@@ -33,11 +35,16 @@ public interface LuggageServiceJpa extends JpaRepository<LuggageServiceEntity, L
 	Page<LuggageServiceEntity> findActiveBySearch(@Param("searchText") String searchText, Pageable pageable);
 
 	@Query("SELECT l FROM LuggageServiceEntity l WHERE l.user.id = :providerId")
+	Optional<LuggageServiceEntity> findByProviderIdForSingleService(Long providerId);
+	
+	@Query("SELECT l FROM LuggageServiceEntity l WHERE l.user.id = :providerId")
 	Page<LuggageServiceEntity> findByProviderId(Long providerId, Pageable pageable);
 
 	@Query("SELECT l FROM LuggageServiceEntity l WHERE l.id = :id AND l.user.id = :providerId")
 	Optional<LuggageServiceEntity> findDetailByIdAndProvider(Long id, Long providerId);
 
+	List<LuggageServiceEntity> findAllByUserId(Long providerId);
+	
 	@Query("SELECT l FROM LuggageServiceEntity l")
 	List<LuggageServiceEntity> findAllForAdmin();
 
@@ -59,6 +66,14 @@ public interface LuggageServiceJpa extends JpaRepository<LuggageServiceEntity, L
 			"WHERE l.id = :id AND l.publicationStatus = true " +
 			"AND (:language IS NULL OR LOWER(loc.language) = LOWER(:language))")
 	Optional<LuggageServiceEntity> findDetailById(@Param("id") Long id, @Param("language") String language);
+
+	@Query("SELECT new us.hogu.controller.dto.response.InfoStatsDto(" +
+            "   CAST(NULL as java.lang.Long), " +
+            "   (SELECT COUNT(b) FROM LuggageBooking b WHERE b.luggageService.user.id = :providerId), " +
+            "   (SELECT COALESCE(SUM(b.totalAmount), 0) FROM LuggageBooking b WHERE b.luggageService.user.id = :providerId) " +
+            ") " +
+            "FROM User u WHERE u.id = :providerId")
+	InfoStatsDto getInfoStatsByProviderId(@Param("providerId") Long providerId);
 
 	List<LuggageServiceEntity> findByUser(User user);
 }

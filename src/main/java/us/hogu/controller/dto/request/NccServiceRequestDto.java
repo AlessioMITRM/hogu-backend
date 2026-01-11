@@ -12,11 +12,13 @@ public class NccServiceRequestDto {
     
     private String description;
     
-    private List<VehicleRequestDto> vehiclesAvailable;
+    private VehicleRequestDto vehicle;
     
     private BigDecimal basePrice;
     
     private List<ServiceLocaleRequestDto> locales;
-        
+            
     private Boolean publicationStatus;
+    
+    private List<String> images;
 }

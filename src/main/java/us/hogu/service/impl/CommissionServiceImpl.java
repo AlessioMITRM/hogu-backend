@@ -1,6 +1,8 @@
 package us.hogu.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,46 +13,76 @@ import us.hogu.model.enums.ServiceType;
 import us.hogu.repository.jpa.CommissionSettingJpa;
 import us.hogu.service.intefaces.CommissionService;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CommissionServiceImpl implements CommissionService {
 
     private final CommissionSettingJpa commissionSettingJpa;
 
     @Override
     @Transactional(readOnly = true)
-    public Double calculateCommissionAmount(Double bookingAmount, ServiceType serviceType) {
+    public BigDecimal calculateCommissionAmount(BigDecimal bookingAmount, ServiceType serviceType) {
+        // Validazione input di base
+        if (bookingAmount == null || bookingAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
         CommissionSetting commissionSetting = getCurrentCommissionSetting(serviceType);
-        
+
+        // Caso: nessuna configurazione specifica → usiamo la commissione di default
         if (commissionSetting == null) {
-            // Commissione di default se non trovata configurazione
             return calculateDefaultCommission(bookingAmount);
         }
-        
-        Double commissionAmount = bookingAmount * (commissionSetting.getCommissionRate() / 100);
-        
-        // Applica commissione minima se specificata
-        if (commissionSetting.getMinCommissionAmount() != null && 
-            commissionAmount < commissionSetting.getMinCommissionAmount()) {
-            return commissionSetting.getMinCommissionAmount();
+
+        // Recuperiamo il tasso percentuale (es: 15.5, 12.00, etc...)
+        BigDecimal ratePercent = commissionSetting.getCommissionRate();
+
+        // Controllo di sicurezza sul tasso (opzionale ma fortemente consigliato)
+        if (ratePercent == null || ratePercent.compareTo(BigDecimal.ZERO) < 0 || 
+            ratePercent.compareTo(new BigDecimal("100")) > 0) {
+            
+        	log.warn("Tasso commissione non valido per {}: {}, uso default", serviceType, ratePercent);
+            return calculateDefaultCommission(bookingAmount);
         }
-        
+
+        // Calcolo: amount * (rate / 100)
+        BigDecimal commissionRateFraction = ratePercent.divide(
+            BigDecimal.valueOf(100), 
+            6,                      // più decimali intermedi per maggiore precisione
+            RoundingMode.HALF_UP
+        );
+
+        BigDecimal commissionAmount = bookingAmount
+            .multiply(commissionRateFraction)
+            .setScale(2, RoundingMode.HALF_UP);  // arrotondamento finale tipico per €
+
+        // Applica eventuale commissione minima
+        BigDecimal minCommission = commissionSetting.getMinCommissionAmount();
+        if (minCommission != null && minCommission.compareTo(BigDecimal.ZERO) > 0) {
+            if (commissionAmount.compareTo(minCommission) < 0) {
+                return minCommission;
+            }
+        }
+
         return commissionAmount;
     }
 
     @Override
     @Transactional(readOnly = true)
     public AppliedCommission calculateCommission(Object booking, ServiceType serviceType) {
-        Double bookingAmount = getBookingAmount(booking, serviceType);
+    	BigDecimal bookingAmount = getBookingAmount(booking, serviceType);
         CommissionSetting commissionSetting = getCurrentCommissionSetting(serviceType);
         
-        Double commissionRate = commissionSetting != null ? 
+        BigDecimal commissionRate = commissionSetting != null ? 
             commissionSetting.getCommissionRate() : getDefaultCommissionRate();
-        Double commissionAmount = calculateCommissionAmount(bookingAmount, serviceType);
+        BigDecimal commissionAmount = calculateCommissionAmount(bookingAmount, serviceType);
         
         return AppliedCommission.builder()
             .id(getBookingId(booking, serviceType))
@@ -115,8 +147,8 @@ public class CommissionServiceImpl implements CommissionService {
     // METODI PRIVATI
     private CommissionSetting getDefaultCommissionSetting(ServiceType serviceType) {
         // Commissioni di default per ogni tipo di servizio
-        Double defaultRate = getDefaultCommissionRateForService(serviceType);
-        Double minCommission = getDefaultMinCommissionForService(serviceType);
+    	BigDecimal defaultRate = getDefaultCommissionRateForService(serviceType);
+    	BigDecimal minCommission = getDefaultMinCommissionForService(serviceType);
         
         return CommissionSetting.builder()
             .serviceType(serviceType)
@@ -126,11 +158,11 @@ public class CommissionServiceImpl implements CommissionService {
             .build();
     }
 
-    private Double getDefaultCommissionRate() {
+    private BigDecimal getDefaultCommissionRate() {
         return CommissionConstants.COMMISSION;
     }
 
-    private Double getDefaultCommissionRateForService(ServiceType serviceType) {
+    private BigDecimal getDefaultCommissionRateForService(ServiceType serviceType) {
         switch (serviceType) {
             case RESTAURANT:
                 return CommissionConstants.COMMISSION;  
@@ -147,23 +179,32 @@ public class CommissionServiceImpl implements CommissionService {
         }
     }
 
-    private Double getDefaultMinCommissionForService(ServiceType serviceType) {
+    private BigDecimal getDefaultMinCommissionForService(ServiceType serviceType) {
         switch (serviceType) {
             case RESTAURANT:
-                return 1.0;  // Min 1€ per ristoranti
+                return new BigDecimal("1.0");  // Min 1€ per ristoranti
             case NCC:
-                return 3.0;  // Min 3€ per NCC
+                return new BigDecimal("3.0");  // Min 3€ per NCC
             case CLUB:
-                return 2.0;  // Min 2€ per club
+                return new BigDecimal("2.0");  // Min 2€ per club
             case LUGGAGE:
-                return 0.5;  // Min 0.5€ per bagagli
+                return new BigDecimal("0.50");  // Min 0.5€ per bagagli
             default:
                 throw new IllegalArgumentException("Tipo di servizio non gestito: " + serviceType);
         }
     }
 
-    private Double calculateDefaultCommission(Double bookingAmount) {
-        return bookingAmount * (getDefaultCommissionRate() / 100);
+    private BigDecimal calculateDefaultCommission(BigDecimal bookingAmount) {
+        if (bookingAmount == null || bookingAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal rate = getDefaultCommissionRate();           // es: 12.5
+        BigDecimal percentage = rate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+
+        return bookingAmount
+                .multiply(percentage)
+                .setScale(2, RoundingMode.HALF_UP);               // arrotondamento finale a 2 decimali
     }
 
     private void disablePreviousSettings(ServiceType serviceType) {
@@ -176,7 +217,7 @@ public class CommissionServiceImpl implements CommissionService {
             });
     }
 
-    private Double getBookingAmount(Object booking, ServiceType serviceType) {
+    private BigDecimal getBookingAmount(Object booking, ServiceType serviceType) {
         switch (serviceType) {
             case RESTAURANT:
                 return ((us.hogu.model.RestaurantBooking) booking).getTotalAmount();

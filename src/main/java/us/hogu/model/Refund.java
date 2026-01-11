@@ -1,5 +1,6 @@
 package us.hogu.model;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import javax.persistence.Entity;
@@ -33,7 +34,7 @@ public class Refund {
     private String paymentIntentId;
     private String captureId; // Per PayPal
     
-    private Double amount;
+    private BigDecimal amount;
     private String currency;
     
     @Enumerated(EnumType.ORDINAL)

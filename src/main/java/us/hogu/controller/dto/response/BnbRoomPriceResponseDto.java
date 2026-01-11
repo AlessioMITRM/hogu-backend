@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import lombok.Builder;
@@ -11,6 +12,6 @@ public class BnbRoomPriceResponseDto {
     private Long id;
     private LocalDate startDate;
     private LocalDate endDate;
-    private Double pricePerNight;
+    private BigDecimal pricePerNight;
     private Long roomId;
 }

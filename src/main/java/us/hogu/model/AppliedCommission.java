@@ -1,5 +1,6 @@
 package us.hogu.model;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import javax.persistence.Entity;
@@ -43,11 +44,11 @@ public class AppliedCommission {
     
     @NotNull(message = "L'importo della commissione è obbligatorio")
     @PositiveOrZero(message = "L'importo della commissione deve essere positivo o zero")
-    private Double commissionAmount;
+    private BigDecimal commissionAmount;
     
     @NotNull(message = "La percentuale della commissione applicata è obbligatoria")
     @PositiveOrZero(message = "La percentuale della commissione deve essere positiva o zero")
-    private Double commissionRateApplied;
+    private BigDecimal commissionRateApplied;
     
     @CreationTimestamp
     @NotNull(message = "La data di calcolo è obbligatoria")

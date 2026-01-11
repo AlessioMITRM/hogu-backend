@@ -1,5 +1,7 @@
 package us.hogu.controller.dto.request;
 
+import java.math.BigDecimal;
+
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
@@ -21,7 +23,7 @@ public class EventPricingConfigurationRequestDto {
     
     @NotNull(message = "Il prezzo è obbligatorio")
     @PositiveOrZero(message = "Il prezzo deve essere positivo o zero")
-    private Double price;
+    private BigDecimal price;
     
     @Positive(message = "La capacità deve essere positiva")
     private Integer capacity;

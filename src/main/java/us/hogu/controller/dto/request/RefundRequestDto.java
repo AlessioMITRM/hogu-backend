@@ -1,5 +1,7 @@
 package us.hogu.controller.dto.request;
 
+import java.math.BigDecimal;
+
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
@@ -11,7 +13,7 @@ public class RefundRequestDto {
 	private Long paymentId;
 	
 	@NotNull
-	private Double amount;
+	private BigDecimal amount;
 	
 	@NotBlank
 	private String reason;

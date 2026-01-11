@@ -12,7 +12,9 @@ import us.hogu.controller.dto.request.NccBookingRequestDto;
 import us.hogu.controller.dto.request.NccSearchRequestDto;
 import us.hogu.controller.dto.request.NccServiceRequestDto;
 import us.hogu.controller.dto.request.RestaurantBookingRequestDto;
+import us.hogu.controller.dto.response.InfoStatsDto;
 import us.hogu.controller.dto.response.NccBookingResponseDto;
+import us.hogu.controller.dto.response.NccDetailResponseDto;
 import us.hogu.controller.dto.response.NccManagementResponseDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
 import us.hogu.controller.dto.response.ServiceSummaryResponseDto;
@@ -36,7 +38,7 @@ public interface NccService {
 
 	List<NccManagementResponseDto> getAllNccServicesForAdmin();
 
-	ServiceDetailResponseDto updateNccService(Long providerId, Long serviceId, NccServiceRequestDto requestDto,
+	NccDetailResponseDto updateNccService(Long providerId, Long serviceId, NccServiceRequestDto requestDto,
 			List<MultipartFile> images) throws Exception;
 
 	Page<NccManagementResponseDto> getProviderNccServices(Long providerId, Pageable pageable);
@@ -46,5 +48,9 @@ public interface NccService {
 	Page<ServiceSummaryResponseDto> getActiveNccServices(NccSearchRequestDto searchRequest, Pageable pageable);
 
 	Page<ServiceSummaryResponseDto> searchNccServices(String searchTerm, Pageable pageable);
+
+	InfoStatsDto getInfo(Long providerId);
+
+	NccDetailResponseDto getNccServiceByServiceIdAndProviderId(Long serviceId, Long providerId);
 
 }

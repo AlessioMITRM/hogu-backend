@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import us.hogu.model.enums.PaymentMethod;
@@ -20,7 +21,7 @@ public class PaymentResponseDto {
 	
 	private Long userId;
 	
-	private Double amount;
+	private BigDecimal amount;
 	
 	private String currency;
 	
@@ -28,9 +29,9 @@ public class PaymentResponseDto {
 	
 	private PaymentStatus status;
 	
-	private Double feeAmount;
+	private BigDecimal feeAmount;
 	
-	private Double netAmount;
+	private BigDecimal netAmount;
 	
 	private OffsetDateTime createdAt;
 }

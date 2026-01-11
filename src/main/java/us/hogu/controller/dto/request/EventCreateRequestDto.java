@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.request;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -35,7 +36,7 @@ public class EventCreateRequestDto {
 
     @NotNull(message = "Il prezzo è obbligatorio")
     @PositiveOrZero(message = "Il prezzo deve essere positivo o zero")
-    private Double price;
+    private BigDecimal price;
 
     @NotNull(message = "Il numero massimo di partecipanti è obbligatorio")
     @Positive(message = "Il numero massimo di partecipanti deve essere positivo")

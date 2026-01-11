@@ -1,5 +1,7 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,6 +17,6 @@ public class LuggageSearchResultResponseDto {
     private String description;
     private String address;
     private String location; // Città
-    private Double price;    // Prezzo base o calcolato
+    private BigDecimal price;    // Prezzo base o calcolato
     private String imageUrl;
 }

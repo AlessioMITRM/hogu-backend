@@ -30,16 +30,22 @@ import us.hogu.controller.dto.request.NccServiceRequestDto;
 import us.hogu.controller.dto.request.RestaurantBookingRequestDto;
 import us.hogu.controller.dto.response.DistanceResponseDto;
 import us.hogu.controller.dto.response.GeoCoordinatesResponseDto;
+import us.hogu.controller.dto.response.InfoStatsDto;
+import us.hogu.controller.dto.response.LuggageServiceDetailResponseDto;
 import us.hogu.controller.dto.response.NccBookingResponseDto;
+import us.hogu.controller.dto.response.NccDetailResponseDto;
 import us.hogu.controller.dto.response.NccManagementResponseDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
+import us.hogu.controller.dto.response.ServiceLocaleResponseDto;
 import us.hogu.controller.dto.response.ServiceSummaryResponseDto;
+import us.hogu.controller.dto.response.VehicleEntityResponseDto;
 import us.hogu.converter.BookingMapper;
 import us.hogu.converter.NccServiceMapper;
 import us.hogu.converter.ServiceLocaleMapper;
 import us.hogu.converter.ServiceMapper;
 import us.hogu.exception.UserNotFoundException;
 import us.hogu.exception.ValidationException;
+import us.hogu.model.LuggageServiceEntity;
 import us.hogu.model.NccBooking;
 import us.hogu.model.NccServiceEntity;
 import us.hogu.model.RestaurantBooking;
@@ -193,6 +199,64 @@ public class NccServiceImpl implements NccService {
 
 		return bookingMapper.toNccResponseDto(savedBooking);
 	}
+	
+	@Override
+    @Transactional(readOnly = true)
+    public InfoStatsDto getInfo(Long providerId) {
+    	NccServiceEntity entity = nccServiceJpa.findByProviderIdForSingleService(providerId)
+                .orElseThrow(() -> new ValidationException(
+                        ErrorConstants.SERVICE_NCC_NOT_FOUND.name(),
+                        ErrorConstants.SERVICE_NCC_NOT_FOUND.getMessage()));
+
+        InfoStatsDto infoStats = nccServiceJpa.getInfoStatsByProviderId(providerId);
+        
+        infoStats.setServiceId(entity.getId());
+
+        return infoStats;
+    }
+	
+    @Override
+    @Transactional(readOnly = true)
+    public NccDetailResponseDto getNccServiceByServiceIdAndProviderId(Long serviceId, Long providerId) {
+        String language = LocaleContextHolder.getLocale().getLanguage();
+    	NccServiceEntity entity = nccServiceJpa.findDetailByIdAndProvider(serviceId, providerId, language)
+                .orElseThrow(() -> new ValidationException(
+                        ErrorConstants.SERVICE_NCC_NOT_FOUND.name(),
+                        ErrorConstants.SERVICE_NCC_NOT_FOUND.getMessage()));
+
+    	ServiceLocale locale = entity.getLocales().get(0);
+    	VehicleEntity vehicle = entity.getVehiclesAvailable().get(0);
+    	
+    	return NccDetailResponseDto.builder()
+    		.name(entity.getName())
+    		.description(entity.getDescription())
+    		.basePrice(entity.getBasePrice())
+    		.publicationStatus(entity.getPublicationStatus())
+    		
+    		.locale(ServiceLocaleResponseDto.builder()
+    					.serviceId(locale.getId())
+    					.serviceType(locale.getServiceType())
+    					.language(locale.getLanguage())
+    					.country(locale.getCountry())
+    					.state(locale.getState())
+    					.city(locale.getCity())
+    					.address(locale.getAddress())
+    					.build()
+    				)
+    		
+    		.vehicle(VehicleEntityResponseDto.builder()
+    					.id(vehicle.getId())
+    					.numberOfSeats(vehicle.getNumberOfSeats())
+    					.plateNumber(vehicle.getPlateNumber())
+    					.model(vehicle.getModel())
+    					.type(vehicle.getType())
+    					.build()
+    				)
+    		
+    		.images(entity.getImages())
+    		.build();
+    		    	
+    }
 
 	@Override
 	@Transactional(readOnly = true)
@@ -242,7 +306,7 @@ public class NccServiceImpl implements NccService {
 
 	@Override
 	@Transactional
-	public ServiceDetailResponseDto updateNccService(Long providerId, Long serviceId, NccServiceRequestDto requestDto,
+	public NccDetailResponseDto updateNccService(Long providerId, Long serviceId, NccServiceRequestDto requestDto,
 			List<MultipartFile> images) throws Exception {
 		User provider = userJpa.findById(providerId)
 				.orElseThrow(() -> new UserNotFoundException(ErrorConstants.PROVIDER_NOT_FOUND.getMessage()));
@@ -260,23 +324,33 @@ public class NccServiceImpl implements NccService {
 		nccService.setBasePrice(requestDto.getBasePrice());
 		nccService.setPublicationStatus(requestDto.getPublicationStatus());
 
-		List<ServiceLocale> updatedLocales = serviceLocaleMapper.mapRequestToEntity(requestDto.getLocales());
-		nccService.getLocales().clear();
-		nccService.getLocales().addAll(updatedLocales);
+		if (requestDto.getLocales() != null) {
+			List<ServiceLocale> updatedLocales = serviceLocaleMapper.mapRequestToEntity(requestDto.getLocales());
+			nccService.getLocales().clear();
+			nccService.getLocales().addAll(updatedLocales);
+		}
 
-		nccService.getVehiclesAvailable().clear();
-		List<VehicleEntity> updatedVehicles = requestDto.getVehiclesAvailable().stream()
-				.map(v -> VehicleEntity.builder().id(v.getId()).plateNumber(v.getPlateNumber()).model(v.getModel())
-						.type(v.getType()).nccService(nccService).build())
-				.collect(Collectors.toList());
-		nccService.getVehiclesAvailable().addAll(updatedVehicles);
+		// Vehicle handling - single vehicle in request
+		if (requestDto.getVehicle() != null) {
+			nccService.getVehiclesAvailable().clear();
+			VehicleEntity vehicleEntity = VehicleEntity.builder()
+					.id(requestDto.getVehicle().getId())
+					.numberOfSeats(requestDto.getVehicle().getNumberOfSeats())
+					.plateNumber(requestDto.getVehicle().getPlateNumber())
+					.model(requestDto.getVehicle().getModel())
+					.type(requestDto.getVehicle().getType())
+					.nccService(nccService)
+					.build();
+			nccService.getVehiclesAvailable().add(vehicleEntity);
+		}
 
 		NccServiceEntity savedService = nccServiceJpa.save(nccService);
+
 		fileService.updateImages(nccService.getId(), ServiceType.NCC, nccService.getImages(), images);
 
 		savedService = nccServiceJpa.save(savedService);
 
-		return nccServiceMapper.toDetailDto(savedService, provider);
+		return nccServiceMapper.toNccDetailDto(savedService);
 	}
 
 	// ADMIN METHODS

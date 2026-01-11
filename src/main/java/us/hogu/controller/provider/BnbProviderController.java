@@ -45,7 +45,7 @@ import us.hogu.controller.dto.response.OperationResponseDto;
 import us.hogu.service.intefaces.BnbService;
 
 @RestController
-@RequestMapping("/api/services/bnb/provider")
+@RequestMapping("/api/provider/services/bnb")
 @RequiredArgsConstructor
 @Tag(name = "Bnb Services Provider", description = "APIs per gestione servizi BNB e prenotazioni per Fornitore")
 @PreAuthorize("hasAnyRole(T(us.hogu.model.enums.UserRole).PROVIDER.name())")

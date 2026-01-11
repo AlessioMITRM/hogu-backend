@@ -18,6 +18,12 @@ import us.hogu.model.User;
 import us.hogu.model.enums.ServiceType;
 import us.hogu.repository.jpa.EventClubServiceRepository;
 
+import us.hogu.controller.dto.response.NccDetailResponseDto;
+import us.hogu.controller.dto.response.VehicleEntityResponseDto;
+import us.hogu.controller.dto.response.ServiceLocaleResponseDto;
+import us.hogu.model.VehicleEntity;
+import us.hogu.model.ServiceLocale;
+
 @RequiredArgsConstructor
 @Component
 public class NccServiceMapper {
@@ -30,7 +36,7 @@ public class NccServiceMapper {
         return NccServiceEntity.builder()
             .name(dto.getName())
             .description(dto.getDescription())
-            .vehiclesAvailable(vehicleMapper.toEntityList(dto.getVehiclesAvailable()))
+            .vehiclesAvailable(dto.getVehicle() != null ? List.of(vehicleMapper.toEntity(dto.getVehicle())) : List.of())
             .basePrice(dto.getBasePrice())
             .locales(serviceLocaleMapper.mapRequestToEntity(dto.getLocales()))
             .publicationStatus(dto.getPublicationStatus())
@@ -72,6 +78,46 @@ public class NccServiceMapper {
                 .build();
     }
     
+    public NccDetailResponseDto toNccDetailDto(NccServiceEntity entity) {
+    	ServiceLocaleResponseDto localeDto = null;
+    	if (entity.getLocales() != null && !entity.getLocales().isEmpty()) {
+    		// Assuming we want the first locale or filter by language if needed
+    		// But NccDetailResponseDto has a single locale
+    		ServiceLocale locale = entity.getLocales().get(0);
+    		localeDto = ServiceLocaleResponseDto.builder()
+    				.serviceId(locale.getId())
+    				.serviceType(locale.getServiceType())
+    				.language(locale.getLanguage())
+    				.country(locale.getCountry())
+    				.state(locale.getState())
+    				.city(locale.getCity())
+    				.address(locale.getAddress())
+    				.build();
+    	}
+    	
+    	VehicleEntityResponseDto vehicleDto = null;
+    	if (entity.getVehiclesAvailable() != null && !entity.getVehiclesAvailable().isEmpty()) {
+    		VehicleEntity vehicle = entity.getVehiclesAvailable().get(0);
+    		vehicleDto = VehicleEntityResponseDto.builder()
+    				.id(vehicle.getId())
+    				.numberOfSeats(vehicle.getNumberOfSeats())
+    				.plateNumber(vehicle.getPlateNumber())
+    				.model(vehicle.getModel())
+    				.type(vehicle.getType())
+    				.build();
+    	}
+    	
+        return NccDetailResponseDto.builder()
+            .name(entity.getName())
+            .description(entity.getDescription())
+            .basePrice(entity.getBasePrice())
+            .publicationStatus(entity.getPublicationStatus())
+            .locale(localeDto)
+            .vehicle(vehicleDto)
+            .images(entity.getImages())
+            .build();
+    }
+    
     public NccManagementResponseDto toManagementDto(NccServiceEntity entity) {
         if (entity == null) {
             return null;
@@ -98,9 +144,12 @@ public class NccServiceMapper {
     public void updateEntityFromDto(NccServiceRequestDto dto, NccServiceEntity entity) {
         if (dto.getName() != null) entity.setName(dto.getName());
         if (dto.getDescription() != null) entity.setDescription(dto.getDescription());
-        if (dto.getVehiclesAvailable() != null) entity.setVehiclesAvailable(vehicleMapper.toEntityList(dto.getVehiclesAvailable()));
+        if (dto.getVehicle() != null) entity.setVehiclesAvailable(List.of(vehicleMapper.toEntity(dto.getVehicle())));
         if (dto.getBasePrice() != null) entity.setBasePrice(dto.getBasePrice());
-        if (dto.getLocales() != null) entity.setLocales(serviceLocaleMapper.mapRequestToEntity(dto.getLocales()));
+        
+        if (dto.getLocales() != null) {
+        	entity.setLocales(serviceLocaleMapper.mapRequestToEntity(dto.getLocales()));
+        }
     }
     
 }

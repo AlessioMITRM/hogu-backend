@@ -37,7 +37,7 @@ import us.hogu.controller.dto.response.ClubServiceResponseDto;
 import us.hogu.controller.dto.response.EventClubServiceResponseDto;
 import us.hogu.controller.dto.response.EventPricingConfigurationResponseDto;
 import us.hogu.controller.dto.response.EventPublicResponseDto;
-import us.hogu.controller.dto.response.InfoStatsDto;
+import us.hogu.controller.dto.response.ClubInfoStatsDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
 import us.hogu.controller.dto.response.ServiceLocaleResponseDto;
 import us.hogu.controller.dto.response.ServiceSummaryResponseDto;
@@ -141,7 +141,7 @@ public class ClubServiceImpl implements ClubService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public InfoStatsDto getInfo(Long providerId) {
+	public ClubInfoStatsDto getInfo(Long providerId) {
 		return clubServiceJpa.getInfoStatsByProviderId(providerId);
 	}
 
@@ -711,14 +711,14 @@ public class ClubServiceImpl implements ClubService {
 		if (entity.getPricingConfigurations() != null && !entity.getPricingConfigurations().isEmpty()) {
 			for (EventPricingConfiguration pc : entity.getPricingConfigurations()) {
 				if (pc.getPricingType() == us.hogu.model.enums.PricingType.MALE) {
-					priceMan = java.math.BigDecimal.valueOf(pc.getPrice());
+					priceMan = pc.getPrice();
 				} else if (pc.getPricingType() == us.hogu.model.enums.PricingType.FEMALE) {
-					priceWoman = java.math.BigDecimal.valueOf(pc.getPrice());
+					priceWoman = pc.getPrice();
 				} else if (pc.getPricingType() == us.hogu.model.enums.PricingType.VIP_TABLE
 						|| pc.getPricingType() == us.hogu.model.enums.PricingType.STANDARD_TABLE) {
 					if (priceMinSpend == null
-							|| java.math.BigDecimal.valueOf(pc.getPrice()).compareTo(priceMinSpend) < 0) {
-						priceMinSpend = java.math.BigDecimal.valueOf(pc.getPrice());
+							|| pc.getPrice().compareTo(priceMinSpend) < 0) {
+						priceMinSpend = pc.getPrice();
 					}
 				}
 			}

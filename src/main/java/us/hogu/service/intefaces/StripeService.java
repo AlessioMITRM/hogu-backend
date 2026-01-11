@@ -1,5 +1,7 @@
 package us.hogu.service.intefaces;
 
+import java.math.BigDecimal;
+
 import com.stripe.model.PaymentIntent;
 
 import us.hogu.client.feign.dto.request.StripePaymentRequestDto;
@@ -11,7 +13,7 @@ public interface StripeService {
 
 	PaymentResponseDto confirmPayment(String paymentIntentId);
 
-	PaymentIntent createPaymentIntent(Double amount, String currency, String bookingId);
+	PaymentIntent createPaymentIntent(BigDecimal amount, String currency, String bookingId);
 
 	boolean processRefund(String paymentIntentId, String reason);
 

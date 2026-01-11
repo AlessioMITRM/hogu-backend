@@ -13,6 +13,7 @@ import us.hogu.common.util.ImageUtils;
 import us.hogu.controller.dto.request.RestaurantServiceRequestDto;
 import us.hogu.controller.dto.response.ProviderSummaryResponseDto;
 import us.hogu.controller.dto.response.RestaurantManagementResponseDto;
+import us.hogu.controller.dto.response.RestaurantServiceDetailResponseDto;
 import us.hogu.controller.dto.response.RestaurantServiceResponseDto;
 import us.hogu.controller.dto.response.ServiceSummaryResponseDto;
 import us.hogu.model.RestaurantServiceEntity;
@@ -71,6 +72,22 @@ public class RestaurantServiceMapper {
     	    	.provider(ProviderSummaryResponseDto.builder().id(provider.getId())
         				.name(provider.getName()).build())
     	        .build();
+    }
+
+    public RestaurantServiceDetailResponseDto toProviderDetailDto(RestaurantServiceEntity entity) {
+        return RestaurantServiceDetailResponseDto.builder()
+                .id(entity.getId())
+                .name(entity.getName())
+                .description(entity.getDescription())
+                .locales(serviceLocaleMapper.mapEntityToReponse(entity.getLocales()))
+                .menu(entity.getMenu())
+                .capacity(entity.getCapacity())
+                .basePrice(entity.getBasePrice())
+                .images(entity.getImages())
+                .publicationStatus(entity.getPublicationStatus())
+                .creationDate(entity.getCreationDate())
+                .providerId(entity.getUser().getId())
+                .build();
     }
 
     public void updateEntityFromDto(RestaurantServiceRequestDto dto, RestaurantServiceEntity entity) {

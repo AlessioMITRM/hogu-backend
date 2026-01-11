@@ -16,7 +16,7 @@ import us.hogu.controller.dto.response.ClubBookingResponseDto;
 import us.hogu.controller.dto.response.ClubManagementResponseDto;
 import us.hogu.controller.dto.response.ClubServiceResponseDto;
 import us.hogu.controller.dto.response.EventClubServiceResponseDto;
-import us.hogu.controller.dto.response.InfoStatsDto;
+import us.hogu.controller.dto.response.ClubInfoStatsDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
 import us.hogu.controller.dto.response.ServiceSummaryResponseDto;
 import us.hogu.model.EventClubServiceEntity;
@@ -68,7 +68,7 @@ public interface ClubService {
 
 	Page<EventClubServiceResponseDto> getEventsToday(Long providerId, Long clubId, Pageable pageable);
 
-	InfoStatsDto getInfo(Long providerId);
+	ClubInfoStatsDto getInfo(Long providerId);
 
 	EventClubServiceResponseDto getEventForProvider(Long providerId, Long eventId);
 

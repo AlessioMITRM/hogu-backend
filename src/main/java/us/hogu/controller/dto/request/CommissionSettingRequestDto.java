@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.request;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 
@@ -23,10 +24,10 @@ public class CommissionSettingRequestDto {
 	private ServiceType serviceType;
     
 	@NotNull
-    private Double commissionRate;
+    private BigDecimal commissionRate;
     
 	@NotNull
-    private Double minCommissionAmount;
+    private BigDecimal minCommissionAmount;
     
 	@NotNull
     private OffsetDateTime effectiveFrom;

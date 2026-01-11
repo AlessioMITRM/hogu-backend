@@ -1,5 +1,6 @@
 package us.hogu.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 
@@ -43,7 +44,7 @@ public class Payment {
     @JoinColumn(name = "user_id")
     private User user;
     
-    private Double amount;
+    private BigDecimal amount;
     
     private String currency;
     
@@ -53,9 +54,9 @@ public class Payment {
     
     private PaymentStatus status; // IN_ATTESA, COMPLETED, FAILED
     
-    private Double feeAmount;
+    private BigDecimal feeAmount;
     
-    private Double netAmount;
+    private BigDecimal netAmount;
     
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

@@ -35,18 +35,47 @@ import us.hogu.configuration.security.dto.UserAccount;
 import us.hogu.controller.dto.request.RestaurantServiceRequestDto;
 import us.hogu.controller.dto.response.RestaurantBookingResponseDto;
 import us.hogu.controller.dto.response.RestaurantManagementResponseDto;
+import us.hogu.controller.dto.response.InfoStatsDto;
+import us.hogu.controller.dto.response.RestaurantServiceDetailResponseDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
 import us.hogu.repository.projection.RestaurantManagementProjection;
 import us.hogu.service.intefaces.RestaurantService;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api/services/restaurants")
+@RequestMapping("/api/provider/services/restaurant")
 @PreAuthorize("hasAnyRole(T(us.hogu.model.enums.UserRole).PROVIDER.name())")
 @Tag(name = "Restaurant Services Provider", description = "APIs per gestione ristoranti e prenotazioni per il profilo del fornitore")
 public class ResturantProviderController {
     private final RestaurantService restaurantService;
     
+    
+    @GetMapping("/get-info")
+    @Operation(summary = "Statistiche ristorante", description = "Restituisce le statistiche del ristorante del fornitore autenticato")
+    public ResponseEntity<InfoStatsDto> getInfo(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserAccount userAccount
+    ) {
+        return ResponseEntity.ok(restaurantService.getInfo(userAccount.getAccountId()));
+    }
+
+    @GetMapping("/{serviceId}")
+    @Operation(summary = "Dettagli ristorante per modifica", description = "Recupera tutti i dati di un ristorante per la pagina di modifica (solo proprietario)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Dettagli recuperati"),
+        @ApiResponse(responseCode = "403", description = "Non autorizzato"),
+        @ApiResponse(responseCode = "404", description = "Ristorante non trovato")
+    })
+    public ResponseEntity<RestaurantServiceDetailResponseDto> getRestaurantServiceForEdit(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserAccount userAccount,
+            @PathVariable Long serviceId) {
+
+    	RestaurantServiceDetailResponseDto response = restaurantService.getRestaurantServiceByIdAndProvider(
+                serviceId, userAccount.getAccountId());
+
+        return ResponseEntity.ok(response);
+    }
     
     @GetMapping("/{id}/bookings")
     @Operation(summary = "Prenotazioni ristorante", description = "Restituisce le prenotazioni ricevute per un ristorante (solo proprietario)")

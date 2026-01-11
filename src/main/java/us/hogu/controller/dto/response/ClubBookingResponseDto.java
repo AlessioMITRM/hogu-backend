@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.response;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import us.hogu.model.enums.BookingStatus;
@@ -15,7 +16,7 @@ public class ClubBookingResponseDto {
     private String bookingFullName;
     private String eventName;
     private BookingStatus status;
-    private Double totalAmount;
+    private BigDecimal totalAmount;
     private OffsetDateTime creationDate;    
     private OffsetDateTime reservationTime;
     private Integer numberOfPeople;

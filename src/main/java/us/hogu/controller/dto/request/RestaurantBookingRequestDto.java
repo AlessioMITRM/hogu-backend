@@ -1,5 +1,6 @@
 package us.hogu.controller.dto.request;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import javax.validation.constraints.NotBlank;
@@ -22,6 +23,6 @@ public class RestaurantBookingRequestDto {
     private String specialRequests;
 	
     @NotNull
-    private Double totalAmount;
+    private BigDecimal totalAmount;
 
 }

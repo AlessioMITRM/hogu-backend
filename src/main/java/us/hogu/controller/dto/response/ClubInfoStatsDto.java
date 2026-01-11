@@ -11,8 +11,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class InfoStatsDto {
-    private Long serviceId;
+public class ClubInfoStatsDto {
+
+    private Long clubId;
     private Long totalBookings;
     private BigDecimal totalBookingsAmount;
 }
