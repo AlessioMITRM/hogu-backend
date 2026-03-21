@@ -16,10 +16,7 @@ spring:
     password: ${DB_PASS:postgres}
     driver-class-name: org.postgresql.Driver
     hikari:
-      connection-init-sql: |
-        CREATE SCHEMA IF NOT EXISTS hogu;
-        SET search_path TO hogu;
-        SET TIME ZONE 'UTC';
+      connection-init-sql: "SET TIME ZONE 'UTC';"
 
   jpa:
     hibernate:
@@ -30,6 +27,7 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
         default_schema: hogu
+        hbm2ddl.create_namespaces: true
         jdbc.time_zone: UTC
 
   servlet:
