@@ -32,7 +32,7 @@ import us.hogu.service.redis.UserStatusRedisService;
  * Filtro custom che valida un secondo JWT e associa un ruolo proveniente da un
  * header separato.
  */
-@Profile("dev")
+@Profile({"dev", "stag"})
 @Component
 public class DevUserAccountValidationFilter extends OncePerRequestFilter {
 
