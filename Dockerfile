@@ -9,7 +9,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 # Stage 2: Run (Leggera immagine JRE per l'esecuzione)
-FROM openjdk:11-jre-slim
+FROM eclipse-temurin:11-jre
 WORKDIR /app
 # Copia solo il JAR compilato dal primo stage
 COPY --from=build /app/target/*.jar app.jar
