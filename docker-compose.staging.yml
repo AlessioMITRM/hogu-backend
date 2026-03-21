@@ -34,6 +34,9 @@ services:
       dockerfile: Dockerfile
     container_name: staging-backend
     env_file: .env
+    environment:
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA=public
+      - SPRING_PROFILES_ACTIVE=stag
     depends_on:
       - postgres
       - redis
