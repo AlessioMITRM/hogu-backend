@@ -108,7 +108,8 @@ public class DevSecurityConfig extends WebSecurityConfigurerAdapter {
             "http://192.168.0.105:5173",
             "https://192.168.0.105:5173",
             "http://172.18.0.1:5173",
-            "https://172.18.0.1:5173"
+            "https://172.18.0.1:5173",
+            "https://staging.hogu.us"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
