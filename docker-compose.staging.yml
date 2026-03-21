@@ -44,6 +44,8 @@ services:
       - redis
       - rabbitmq
     restart: always
+    volumes:
+      - storage_data:/storage
 
   # 5. Frontend (React + Nginx Interno Segreto)
   frontend:
@@ -59,6 +61,8 @@ services:
     depends_on:
       - backend
     restart: always
+    volumes:
+      - storage_data:/usr/share/nginx/html/files:ro
 
   # 6. Caddy Reverse Proxy (HTTPS Automatico e Gratuito per Stripe/PayPal)
   caddy:
@@ -77,3 +81,4 @@ services:
 
 volumes:
   postgres_data:
+  storage_data:
