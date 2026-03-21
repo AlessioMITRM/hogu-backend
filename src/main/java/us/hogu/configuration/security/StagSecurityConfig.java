@@ -15,9 +15,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.core.OAuth2TokenValidator;
-import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
@@ -29,40 +26,40 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import io.jsonwebtoken.security.Keys;
 
-@Profile("dev")
+@Profile("stag")
 @Configuration
 @SuppressWarnings("deprecation")
-public class DevSecurityConfig extends WebSecurityConfigurerAdapter {
+public class StagSecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final DevUserAccountValidationFilter userAccountValidationFilter;
 
     @Value("${jwt.secret:myDevJwtSecret_64_characters_minimum__________1234567890}")
     private String jwtSecret;
 
-    public DevSecurityConfig(DevUserAccountValidationFilter userAccountValidationFilter) {
+    public StagSecurityConfig(DevUserAccountValidationFilter userAccountValidationFilter) {
         this.userAccountValidationFilter = userAccountValidationFilter;
     }
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
-            .csrf().disable()
-            .cors() // ABILITA CORS
-            .and()
-            .authorizeRequests()
+                .csrf().disable()
+                .cors() // ABILITA CORS
+                .and()
+                .authorizeRequests()
                 .antMatchers(
-                    "/", 
-                    "/api/public/**",
-                    "/api/v1/utente/registrazione-controllo",
-                    "/v3/api-docs/**",
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/swagger",
-                    "/webjars/**"
-                ).permitAll()
+                        "/",
+                        "/api/public/**",
+                        "/api/v1/utente/registrazione-controllo",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/swagger",
+                        "/webjars/**")
+                .permitAll()
                 .anyRequest().authenticated()
-            .and()
-            .oauth2ResourceServer()
+                .and()
+                .oauth2ResourceServer()
                 .jwt()
                 .decoder(primaryJwtDecoder())
                 .jwtAuthenticationConverter(emptyAuthoritiesConverter());
@@ -86,8 +83,8 @@ public class DevSecurityConfig extends WebSecurityConfigurerAdapter {
         SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
 
         NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(key)
-            .macAlgorithm(org.springframework.security.oauth2.jose.jws.MacAlgorithm.HS512)
-            .build();
+                .macAlgorithm(org.springframework.security.oauth2.jose.jws.MacAlgorithm.HS512)
+                .build();
 
         jwtDecoder.setJwtValidator(new JwtTimestampValidator());
 
@@ -99,17 +96,7 @@ public class DevSecurityConfig extends WebSecurityConfigurerAdapter {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowedOrigins(List.of(
-            "http://localhost:5173",
-            "https://localhost:5173",
-            "http://localhost:5174",
-            "https://localhost:5174",
-            "http://192.168.0.104:5173",
-            "https://192.168.0.104:5173",
-            "http://192.168.0.105:5173",
-            "https://192.168.0.105:5173",
-            "http://172.18.0.1:5173",
-            "https://172.18.0.1:5173"
-        ));
+                "https://staging.hogu.us"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization", "Content-Type"));
