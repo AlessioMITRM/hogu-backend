@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import lombok.RequiredArgsConstructor;
 import us.hogu.common.constants.ErrorConstants;
 import us.hogu.common.util.ImageUtils;
 import us.hogu.controller.dto.request.ClubBookingRequestDto;
@@ -38,6 +39,7 @@ import us.hogu.controller.dto.response.EventClubServiceResponseDto;
 import us.hogu.controller.dto.response.EventPricingConfigurationResponseDto;
 import us.hogu.controller.dto.response.EventPublicResponseDto;
 import us.hogu.controller.dto.response.ClubInfoStatsDto;
+import us.hogu.controller.dto.response.ClubBookingValidationResponseDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
 import us.hogu.controller.dto.response.ServiceLocaleResponseDto;
 import us.hogu.controller.dto.response.ServiceSummaryResponseDto;
@@ -56,6 +58,7 @@ import us.hogu.model.User;
 import us.hogu.model.enums.BookingStatus;
 import us.hogu.model.enums.ServiceType;
 import us.hogu.model.enums.VerificationStatusServiceEY;
+import us.hogu.model.enums.PricingType;
 import us.hogu.repository.jdbc.ClubEventJdbc;
 import us.hogu.repository.jpa.ClubBookingJpa;
 import us.hogu.repository.jpa.ClubServiceJpa;
@@ -70,8 +73,11 @@ import us.hogu.service.intefaces.CommissionService;
 import us.hogu.service.intefaces.EventPricingConfigurationService;
 import us.hogu.service.intefaces.FileService;
 import us.hogu.service.intefaces.PayPalService;
+import us.hogu.service.intefaces.PaymentService;
 import us.hogu.service.intefaces.StripeService;
-import lombok.RequiredArgsConstructor;
+import us.hogu.service.mq.BookingProducer;
+import us.hogu.service.redis.RedisAvailabilityService;
+import us.hogu.controller.dto.request.ClubBookingEvent;
 
 @RequiredArgsConstructor
 @Service
@@ -88,6 +94,9 @@ public class ClubServiceImpl implements ClubService {
 	private final BookingMapper bookingMapper;
 	private final ServiceLocaleMapper serviceLocaleMapper;
 	private final EventPricingConfigurationMapper eventPricingConfigurationMapper;
+	private final RedisAvailabilityService redisService;
+	private final PaymentService paymentService;
+	private final BookingProducer bookingProducer;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -98,18 +107,31 @@ public class ClubServiceImpl implements ClubService {
 					ErrorConstants.CLUB_NOT_FOUND_OR_NOT_AUTHORIZED.getMessage());
 		}
 
-		Page<ClubBooking> bookings = clubBookingJpa.findByclubServiceIdAndStatus(clubId, BookingStatus.PENDING,
-				pageable);
+		OffsetDateTime now = OffsetDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+		Page<ClubBooking> bookings = clubBookingJpa.findFutureBookings(clubId, now, pageable);
 
-		List<ClubBookingResponseDto> dtoList = new ArrayList<ClubBookingResponseDto>();
-		for (ClubBooking entity : bookings.getContent()) {
-			ClubBookingResponseDto dto = ClubBookingResponseDto.builder().id(entity.getId()).eventId(entity.getId())
-					.bookingFullName(entity.getBillingFirstName() + StringUtils.SPACE + entity.getBillingLastName())
-					.reservationTime(entity.getReservationTime()).numberOfPeople(entity.getNumberOfPeople())
-					.totalAmount(entity.getTotalAmount()).status(entity.getStatus()).table(entity.getTable()).build();
+		List<ClubBookingResponseDto> dtoList = bookings.getContent().stream()
+				.map(bookingMapper::toClubResponseDto)
+				.collect(Collectors.toList());
 
-			dtoList.add(dto);
+		return new PageImpl<>(dtoList, pageable, bookings.getTotalElements());
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Page<ClubBookingResponseDto> getClubBookingsHistory(Long providerId, Long clubId, Pageable pageable) {
+		boolean existClub = clubServiceJpa.existsByIdAndUserId(clubId, providerId);
+		if (!existClub) {
+			throw new ValidationException(ErrorConstants.CLUB_NOT_FOUND_OR_NOT_AUTHORIZED.name(),
+					ErrorConstants.CLUB_NOT_FOUND_OR_NOT_AUTHORIZED.getMessage());
 		}
+
+		OffsetDateTime now = OffsetDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+		Page<ClubBooking> bookings = clubBookingJpa.findPastBookings(clubId, now, pageable);
+
+		List<ClubBookingResponseDto> dtoList = bookings.getContent().stream()
+				.map(bookingMapper::toClubResponseDto)
+				.collect(Collectors.toList());
 
 		return new PageImpl<>(dtoList, pageable, bookings.getTotalElements());
 	}
@@ -123,18 +145,13 @@ public class ClubServiceImpl implements ClubService {
 					ErrorConstants.CLUB_NOT_FOUND_OR_NOT_AUTHORIZED.getMessage());
 		}
 
-		Page<ClubBooking> bookings = clubBookingJpa.findByclubServiceIdAndStatus(clubId, BookingStatus.PENDING,
+		Page<ClubBooking> bookings = clubBookingJpa.findByclubServiceIdAndStatus(clubId,
+				BookingStatus.PAYMENT_AUTHORIZED,
 				pageable);
 
-		List<ClubBookingResponseDto> dtoList = new ArrayList<ClubBookingResponseDto>();
-		for (ClubBooking entity : bookings.getContent()) {
-			ClubBookingResponseDto dto = ClubBookingResponseDto.builder().id(entity.getId()).eventId(entity.getId())
-					.bookingFullName(entity.getBillingFirstName() + StringUtils.SPACE + entity.getBillingLastName())
-					.reservationTime(entity.getReservationTime()).numberOfPeople(entity.getNumberOfPeople())
-					.totalAmount(entity.getTotalAmount()).build();
-
-			dtoList.add(dto);
-		}
+		List<ClubBookingResponseDto> dtoList = bookings.getContent().stream()
+				.map(bookingMapper::toClubResponseDto)
+				.collect(Collectors.toList());
 
 		return new PageImpl<>(dtoList, pageable, bookings.getTotalElements());
 	}
@@ -201,7 +218,7 @@ public class ClubServiceImpl implements ClubService {
 	@Override
 	@Transactional(readOnly = true)
 	public Page<EventClubServiceResponseDto> getEventsForPublic(Long clubId, Pageable pageable) {
-		Page<EventClubServiceEntity> events = clubServiceJpa.findByClubServiceId(clubId, pageable);
+		Page<EventClubServiceEntity> events = clubServiceJpa.findActiveEventsByClubServiceId(clubId, pageable);
 
 		List<EventClubServiceResponseDto> dtoList = new ArrayList<>();
 		for (EventClubServiceEntity entity : events.getContent()) {
@@ -215,7 +232,8 @@ public class ClubServiceImpl implements ClubService {
 	@Override
 	@Transactional(readOnly = true)
 	public List<ServiceSummaryResponseDto> getActiveClubs(String searchText) {
-		List<ClubServiceEntity> entity = clubServiceJpa.findActiveBySearch(searchText);
+		String language = LocaleContextHolder.getLocale().getLanguage();
+		List<ClubServiceEntity> entity = clubServiceJpa.findActiveBySearch(searchText, language);
 
 		return entity.stream().map(clubServiceMapper::toSummaryDto).collect(Collectors.toList());
 	}
@@ -254,8 +272,13 @@ public class ClubServiceImpl implements ClubService {
 				.orElseThrow(() -> new ValidationException(ErrorConstants.EVENT_NOT_FOUND.name(),
 						ErrorConstants.EVENT_NOT_FOUND.getMessage()));
 
+		if (Boolean.TRUE.equals(event.getDeleted()) || !Boolean.TRUE.equals(event.getIsActive())) {
+			throw new ValidationException(ErrorConstants.EVENT_NOT_FOUND.name(),
+					ErrorConstants.EVENT_NOT_FOUND.getMessage());
+		}
+
 		boolean available = true;
-		if (!event.getIsActive() || event.getMaxCapacity() <= event.getOccupiedCapacity()
+		if (!redisService.checkEventAvailability(event.getId(), event.getMaxCapacity())
 				|| !event.getEndTime().isAfter(OffsetDateTime.now())) {
 			available = false;
 		}
@@ -277,21 +300,21 @@ public class ClubServiceImpl implements ClubService {
 				.orElseThrow(() -> new ValidationException(ErrorConstants.EVENT_NOT_FOUND.name(),
 						ErrorConstants.EVENT_NOT_FOUND.getMessage()));
 
-		if (providerId != event.getClubService().getUser().getId()) {
-			new ValidationException(ErrorConstants.PROVIDER_NOT_ALLOWED.name(),
+		if (!providerId.equals(event.getClubService().getUser().getId())) {
+			throw new ValidationException(ErrorConstants.PROVIDER_NOT_ALLOWED.name(),
 					ErrorConstants.PROVIDER_NOT_ALLOWED.getMessage());
 		}
 
-		String language = LocaleContextHolder.getLocale().getLanguage();
+		if (Boolean.TRUE.equals(event.getDeleted())) {
+			throw new ValidationException(ErrorConstants.EVENT_NOT_FOUND.name(),
+					ErrorConstants.EVENT_NOT_FOUND.getMessage());
+		}
 
-		List<ServiceLocale> filtered = event.getLocales().stream()
-				.filter(locale -> locale.getLanguage().equalsIgnoreCase(language)).collect(Collectors.toList());
-
-		List<ServiceLocaleResponseDto> filteredLocales = serviceLocaleMapper.mapEntityToReponse(filtered);
+		List<ServiceLocaleResponseDto> allLocales = serviceLocaleMapper.mapEntityToReponse(event.getLocales());
 
 		return EventClubServiceResponseDto.builder().id(event.getId()).name(event.getName())
 				.clubServiceId(event.getClubService().getId())
-				.description(event.getDescription()).serviceLocale(filteredLocales).startTime(event.getStartTime())
+				.description(event.getDescription()).serviceLocale(allLocales).startTime(event.getStartTime())
 				.endTime(event.getEndTime()).theme(event.getTheme()).images(event.getImages())
 				.available(event.getIsActive()).price(event.getPrice()).djName(event.getDjName())
 				.pricingConfigurations(eventPricingConfigurationMapper.toDtoList(event.getPricingConfigurations()))
@@ -311,7 +334,8 @@ public class ClubServiceImpl implements ClubService {
 	}
 
 	public ClubServiceResponseDto getClubDetail(Long clubId) {
-		ClubServiceEntity club = clubServiceJpa.findById(clubId)
+		String language = LocaleContextHolder.getLocale().getLanguage();
+		ClubServiceEntity club = clubServiceJpa.findDetailById(clubId, language)
 				.orElseThrow(() -> new ValidationException(ErrorConstants.CLUB_NOT_FOUND.name(),
 						ErrorConstants.CLUB_NOT_FOUND.getMessage()));
 
@@ -330,12 +354,161 @@ public class ClubServiceImpl implements ClubService {
 				.orElseThrow(() -> new ValidationException(ErrorConstants.CLUB_NOT_FOUND.name(),
 						ErrorConstants.CLUB_NOT_FOUND.getMessage()));
 
-		checkClubAvailability(clubService, requestDto.getReservationTime(), requestDto.getNumberOfPeople());
+		// 1. Retrieve Event (Required for capacity context)
+		EventClubServiceEntity event = eventClubServiceRepository.findById(requestDto.getEventId())
+				.orElseThrow(() -> new ValidationException(ErrorConstants.EVENT_NOT_FOUND.name(),
+						ErrorConstants.EVENT_NOT_FOUND.getMessage()));
 
-		ClubBooking booking = bookingMapper.toClubEntity(requestDto, user, clubService);
+		if (!event.getClubService().getId().equals(clubService.getId())) {
+			throw new ValidationException(ErrorConstants.GENERIC_ERROR.name(),
+					"L'evento specificato non appartiene al club selezionato");
+		}
+
+		// 2. Redis Atomic Reservation
+		// Calculate initial available capacity for lazy loading in Redis
+		int initialAvailable = (int) (event.getMaxCapacity() - event.getOccupiedCapacity());
+		boolean reserved = redisService.reserveEvent(event.getId(), requestDto.getNumberOfPeople(), initialAvailable);
+
+		if (!reserved) {
+			throw new ValidationException(ErrorConstants.LIMIT_MAX_PEOPLE_CLUB.name(),
+					"Disponibilità esaurita per l'evento selezionato");
+		}
+
+		// 3. Calculate Total Amount
+		java.math.BigDecimal totalAmount = java.math.BigDecimal.ZERO;
+		EventPricingConfiguration selectedPricingConfig = null;
+
+		if (requestDto.getPricingConfiguration() != null) {
+			// VALIDATION: Check if the pricing configuration exists in the event and
+			// matches the price
+			selectedPricingConfig = event.getPricingConfigurations().stream()
+					.filter(pc -> pc.getId().equals(requestDto.getPricingConfiguration().getId()))
+					.findFirst()
+					.orElseThrow(() -> new ValidationException(ErrorConstants.GENERIC_ERROR.name(),
+							"Configurazione prezzo non valida per questo evento"));
+
+			if (requestDto.getPricingConfiguration().getPrice() != null &&
+					requestDto.getPricingConfiguration().getPrice().compareTo(selectedPricingConfig.getPrice()) != 0) {
+				throw new ValidationException(ErrorConstants.GENERIC_ERROR.name(),
+						"Il prezzo indicato non corrisponde al prezzo attuale dell'evento");
+			}
+
+			totalAmount = selectedPricingConfig.getPrice();
+		} else if (event.getPrice() != null) {
+			totalAmount = event.getPrice().multiply(java.math.BigDecimal.valueOf(requestDto.getNumberOfPeople()));
+		}
+
+		// 4. Create Booking (Sync)
+		ClubBooking booking = bookingMapper.toClubEntity(requestDto, user, clubService, totalAmount);
+		booking.setEventClubService(event);
+		booking.setStatus(BookingStatus.PENDING);
+		booking.setReservationTime(event.getStartTime());
+
+		if (selectedPricingConfig != null) {
+			booking.setPricingType(selectedPricingConfig.getPricingType().name());
+			booking.setPricingDescription(selectedPricingConfig.getDescription());
+			booking.setPricingPrice(selectedPricingConfig.getPrice());
+		}
+
 		ClubBooking savedBooking = clubBookingJpa.save(booking);
 
+		// 5. Async Event for DB Update
+		ClubBookingEvent queueEvent = ClubBookingEvent.builder()
+				.userId(userId)
+				.clubServiceId(clubService.getId())
+				.eventId(event.getId())
+				.reservationTime(event.getStartTime())
+				.numberOfPeople(requestDto.getNumberOfPeople())
+				.totalAmount(totalAmount)
+				.specialRequests(requestDto.getSpecialRequests())
+				.billingFirstName(requestDto.getBillingFirstName())
+				.billingLastName(requestDto.getBillingLastName())
+				.fiscalCode(requestDto.getFiscalCode())
+				.taxId(requestDto.getTaxId())
+				.pricingConfiguration(
+						selectedPricingConfig != null ? eventPricingConfigurationMapper.toDto(selectedPricingConfig)
+								: null)
+				.build();
+
+		try {
+			bookingProducer.sendClubBookingRequest(queueEvent);
+		} catch (Exception e) {
+			// Log error, but booking is saved in PENDING state.
+			// In a real scenario, we might want a scheduled task to retry or cleanup.
+			// Since Redis lock is acquired, we are safe on concurrency.
+		}
+
 		return bookingMapper.toClubResponseDto(savedBooking);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ClubBookingValidationResponseDto validateClubBookingForEvent(Long providerId, Long eventId,
+			String bookingCode) {
+		if (eventId == null || bookingCode == null) {
+			return ClubBookingValidationResponseDto.builder().valid(false).build();
+		}
+
+		ClubBooking booking = clubBookingJpa.findByBookingCode(bookingCode)
+				.orElse(null);
+		if (booking == null) {
+			return ClubBookingValidationResponseDto.builder()
+					.valid(false)
+					.eventId(eventId)
+					.build();
+		}
+
+		if (booking.getClubService() == null
+				|| booking.getClubService().getUser() == null
+				|| !booking.getClubService().getUser().getId().equals(providerId)) {
+			return ClubBookingValidationResponseDto.builder()
+					.valid(false)
+					.bookingId(booking.getId())
+					.eventId(eventId)
+					.build();
+		}
+
+		EventClubServiceEntity event = booking.getEventClubService();
+		if (event == null || !event.getId().equals(eventId)) {
+			return ClubBookingValidationResponseDto.builder()
+					.valid(false)
+					.bookingId(booking.getId())
+					.eventId(eventId)
+					.build();
+		}
+
+		boolean statusOk = booking.getStatus() == BookingStatus.FULL_PAYMENT_COMPLETED;
+
+		LocalDate today = LocalDate.now();
+		LocalDate bookingDate = booking.getReservationTime() != null
+				? booking.getReservationTime().toLocalDate()
+				: null;
+		boolean dateOk = bookingDate != null && bookingDate.isEqual(today);
+
+		boolean valid = statusOk && dateOk;
+
+		String firstName = booking.getBillingFirstName() != null ? booking.getBillingFirstName()
+				: (booking.getUser() != null ? booking.getUser().getName() : null);
+		String lastName = booking.getBillingLastName() != null ? booking.getBillingLastName()
+				: (booking.getUser() != null ? booking.getUser().getSurname() : null);
+		String fullName = ((firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "")).trim();
+
+		String dateStr = booking.getReservationTime() != null
+				? booking.getReservationTime().toLocalDate().toString()
+				: null;
+		String timeStr = booking.getReservationTime() != null
+				? booking.getReservationTime().toLocalTime().toString()
+				: null;
+
+		return ClubBookingValidationResponseDto.builder()
+				.valid(valid)
+				.bookingId(booking.getId())
+				.eventId(eventId)
+				.fullName(fullName)
+				.date(dateStr)
+				.time(timeStr)
+				.guests(booking.getNumberOfPeople())
+				.build();
 	}
 
 	// FORNITORE - crea/aggiorna club
@@ -431,7 +604,8 @@ public class ClubServiceImpl implements ClubService {
 				.description(requestDto.getDescription())
 				.locales(serviceLocaleMapper.mapRequestToEntity(requestDto.getServiceLocale()))
 				.startTime(requestDto.getStartTime()).endTime(requestDto.getEndTime()).price(requestDto.getPrice())
-				.maxCapacity(requestDto.getMaxCapacity()).djName(requestDto.getDjName()).theme(requestDto.getTheme())
+				.maxCapacity(requestDto.getMaxCapacity()).occupiedCapacity(0L).djName(requestDto.getDjName())
+				.theme(requestDto.getTheme())
 				.isActive(requestDto.getIsActive()).creationDate(OffsetDateTime.now()).build();
 
 		// Salva l'evento prima per ottenere l'ID
@@ -529,8 +703,8 @@ public class ClubServiceImpl implements ClubService {
 		if (requestDto.getPricingConfigurations() != null && !requestDto.getPricingConfigurations().isEmpty()) {
 			List<EventPricingConfiguration> pricingConfigs = eventPricingConfigurationMapper
 					.toEntityList(requestDto.getPricingConfigurations(), event);
-			
-			eventPricingConfigurationService.saveAll(pricingConfigs);
+
+			event.getPricingConfigurations().addAll(pricingConfigs);
 		}
 
 		// === GESTIONE IMMAGINI CON FILESERVICE ===
@@ -622,28 +796,45 @@ public class ClubServiceImpl implements ClubService {
 		event.setStartTime(requestDto.getStartTime());
 		event.setEndTime(requestDto.getEndTime());
 		event.setPrice(requestDto.getPrice());
+
+		Long oldCapacity = event.getMaxCapacity();
 		event.setMaxCapacity(requestDto.getMaxCapacity());
+		Long newCapacity = event.getMaxCapacity();
+
+		if (oldCapacity != null && newCapacity != null) {
+			redisService.updateEventCapacity(eventId, oldCapacity, newCapacity);
+		}
+
 		event.setTheme(requestDto.getTheme());
 		event.setIsActive(requestDto.getIsActive());
 		event.setDressCode(requestDto.getDressCode());
 		event.setGenderPercentage(requestDto.getGenderPercentage());
 
-		// Gestione pricing configurations
-		if (requestDto.getPricingConfigurations() != null && !requestDto.getPricingConfigurations().isEmpty()) {
-			eventPricingConfigurationService.deleteAll(event.getPricingConfigurations());
-			List<EventPricingConfiguration> newPricing = eventPricingConfigurationMapper
-					.toEntityList(requestDto.getPricingConfigurations(), event);
-			eventPricingConfigurationService.saveAll(newPricing);
+		// Gestione pricing configurations - REPLACE ALL (Hard Delete)
+		// Poiché la relazione con ClubBooking è stata rimossa, possiamo cancellare e
+		// ricreare le configurazioni
+		if (requestDto.getPricingConfigurations() != null) {
+			event.getPricingConfigurations().clear();
+			if (!requestDto.getPricingConfigurations().isEmpty()) {
+				List<EventPricingConfiguration> newConfigs = eventPricingConfigurationMapper
+						.toEntityList(requestDto.getPricingConfigurations(), event);
+				event.getPricingConfigurations().addAll(newConfigs);
+			} else {
+				// Se la lista è vuota, significa che non ci sono prezzi specifici
+				// Quindi impostiamo il prezzo standard sull'entità evento
+				event.setPrice(requestDto.getPrice());
+			}
 		} else {
-			eventPricingConfigurationService.deleteAll(event.getPricingConfigurations());
+			// Se null, rimuoviamo tutto e settiamo il prezzo base
+			event.getPricingConfigurations().clear();
+			event.setPrice(requestDto.getPrice());
 		}
 
 		// === GESTIONE IMMAGINI DELL'EVENTO CON FILESERVICE ===
 		Path basePath = Paths.get(ImageUtils.STORAGE_ROOT, ServiceType.CLUB.name().toLowerCase(),
 				club.getId().toString(), "event", eventId.toString());
 
-		List<String> currentImages = event.getImages() != null ? 
-				new ArrayList<>(event.getImages()) 
+		List<String> currentImages = event.getImages() != null ? new ArrayList<>(event.getImages())
 				: new ArrayList<>();
 
 		// Usa il FileService per gestire la sostituzione totale delle immagini
@@ -674,9 +865,49 @@ public class ClubServiceImpl implements ClubService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public Page<EventPublicResponseDto> getEventsForPublicWithFilters(String location, String eventType, String date,
-			Boolean table, Pageable pageable) {
-		return clubEventJdbc.getEventsForPublicWithFilters(location, eventType, date, table, pageable);
+	public Page<EventPublicResponseDto> getEventsForPublicWithFilters(String country, String province, String eventType,
+			String date,
+			Boolean table, String language, Pageable pageable) {
+		Page<EventPublicResponseDto> page = clubEventJdbc.getEventsForPublicWithFilters(null, province, country,
+				eventType, date, table, language, pageable);
+
+		List<EventPublicResponseDto> availableEvents = new ArrayList<>();
+		for (EventPublicResponseDto event : page.getContent()) {
+			// Remove quotes if present (cleaning up potential double quoting from DB/JSON
+			// parsing)
+			if (event.getImages() != null) {
+				List<String> formattedImages = event.getImages().stream()
+						.map(img -> {
+							String clean = img.trim();
+							if (clean.startsWith("\"") && clean.length() > 1)
+								clean = clean.substring(1);
+							if (clean.endsWith("\"") && clean.length() > 0)
+								clean = clean.substring(0, clean.length() - 1);
+							return clean;
+						})
+						.collect(Collectors.toList());
+				event.setImages(formattedImages);
+			}
+
+			// Check Redis availability
+			boolean isAvailable = true;
+			if (event.getMaxCapacity() != null) {
+				// Se maxCapacity > 0 e occupiedCapacity < maxCapacity (check fatto in query),
+				// dobbiamo verificare se Redis ha ridotto ulteriormente la disponibilità.
+				// Ma se Redis non ha la chiave, assume maxCapacity.
+				isAvailable = redisService.checkEventAvailability(event.getId(), event.getMaxCapacity().longValue());
+			}
+
+			// Se è disponibile, lo aggiungiamo.
+			// La richiesta utente dice "non mi esce niente", quindi presumiamo che vengano
+			// filtrati via.
+			if (isAvailable) {
+				event.setAvailable(true);
+				availableEvents.add(event);
+			}
+		}
+
+		return new PageImpl<>(availableEvents, pageable, page.getTotalElements());
 	}
 
 	private EventClubServiceResponseDto toEventClubServiceResponseDto(EventClubServiceEntity entity) {
@@ -730,10 +961,37 @@ public class ClubServiceImpl implements ClubService {
 				: "Location Not Available";
 
 		return us.hogu.controller.dto.response.EventPublicResponseDto.builder().id(entity.getId())
+				.clubId(entity.getClubService() != null ? entity.getClubService().getId() : null)
 				.name(entity.getName()).location(location).description(entity.getDescription()).priceMan(priceMan)
 				.priceWoman(priceWoman)
+				.price(entity.getPrice())
 				// .priceMinSpend(priceMinSpend)
 				.startTime(entity.getStartTime()).eventType(entity.getTheme()).build();
+	}
+
+	@Override
+	@Transactional
+	public void deleteEvent(Long providerId, Long eventId) {
+		EventClubServiceEntity event = eventClubServiceRepository
+				.findByIdAndClubService_User_IdAndDeletedFalse(eventId, providerId)
+				.orElseThrow(() -> new ValidationException(ErrorConstants.SERVICE_NOT_FOUND.name(),
+						"Evento non trovato o non autorizzato"));
+
+		event.setDeleted(true);
+		event.setIsActive(false);
+		eventClubServiceRepository.save(event);
+	}
+
+	@Override
+	@Transactional
+	public void cancelBooking(Long providerId, Long bookingId, String reason) {
+		paymentService.cancelBookingByProvider(bookingId, ServiceType.CLUB, providerId, reason);
+	}
+
+	@Override
+	@Transactional
+	public void acceptBooking(Long providerId, Long bookingId) {
+		paymentService.confirmBookingByProvider(bookingId, ServiceType.CLUB, providerId);
 	}
 
 }

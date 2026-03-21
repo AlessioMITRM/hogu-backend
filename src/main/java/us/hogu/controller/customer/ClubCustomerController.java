@@ -30,10 +30,10 @@ import us.hogu.controller.dto.response.ClubBookingResponseDto;
 import us.hogu.service.intefaces.ClubService;
 
 @RestController
-@RequestMapping("/api/services/club/customer")
+@RequestMapping("/api/customer/services/club")
 @RequiredArgsConstructor
 @Tag(name = "Clubs Services Customer", description = "APIs per gestione club e prenotazioni del Customer")
-@PreAuthorize("hasAnyRole(T(us.hogu.model.enums.UserRole).PROVIDER.name())")
+@PreAuthorize("hasAnyRole(T(us.hogu.model.enums.UserRole).CUSTOMER.name())")
 public class ClubCustomerController {
     private final ClubService clubService;
 
@@ -58,7 +58,7 @@ public class ClubCustomerController {
 	    return ResponseEntity.ok(response);
 	}
     
-    @PostMapping("/{id}/bookings")
+    @PostMapping("/{id}/booking")
     @Operation(summary = "Crea prenotazione club", description = "Crea una nuova prenotazione per il club specificato")
     public ResponseEntity<ClubBookingResponseDto> createClubBooking(
     		@Parameter(hidden = true)

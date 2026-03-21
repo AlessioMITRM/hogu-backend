@@ -3,6 +3,7 @@ package us.hogu.controller.dto.request;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
@@ -11,17 +12,38 @@ import lombok.Data;
 @Data
 public class LuggageBookingRequestDto {
 	@NotNull
-	private long luggageServiceId;
+	@Min(1)
+	private Long luggageServiceId;
 	
 	@NotNull
-    private OffsetDateTime reservationTime;
-    
+    private OffsetDateTime dropOffTime;
+
 	@NotNull
-    private Integer numberOfPeople;
+    private OffsetDateTime pickUpTime;
+
+	private Integer bagsSmall;
+	
+	private Integer bagsMedium;
+	
+	private Integer bagsLarge;
     
-	@NotBlank
-    private String specialRequests;
+	private String specialRequests;
 	
 	@NotNull
 	private BigDecimal totalAmount;
+
+    private String billingFirstName;
+    
+	private String billingLastName;
+    
+	@NotBlank
+	private String billingAddress;
+    
+	@NotBlank
+	private String billingEmail;
+
+	private String fiscalCode;
+    
+	
+	private String taxId;
 }

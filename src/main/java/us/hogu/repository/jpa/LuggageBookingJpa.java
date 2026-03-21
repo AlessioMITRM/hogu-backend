@@ -72,6 +72,12 @@ public interface LuggageBookingJpa extends JpaRepository<LuggageBooking, Long> {
                                                  @Param("dropOffTime") OffsetDateTime dropOffTime,
                                                  @Param("activeStatuses") List<BookingStatus> activeStatuses);
     
+    // Prenotazioni passate (fino a ieri) per servizio Luggage
+    @Query("SELECT lb FROM LuggageBooking lb WHERE lb.luggageService.id = :luggageServiceId AND lb.dropOffTime < :now")
+    Page<LuggageBooking> findPastBookings(@Param("luggageServiceId") Long luggageServiceId,
+                                          @Param("now") OffsetDateTime now,
+                                          Pageable pageable);
+    
     // Prenotazioni per numero minimo di bagagli
     @Query("SELECT lb FROM LuggageBooking lb WHERE lb.luggageService.id = :luggageServiceId")
     List<LuggageBooking> findByLuggageServiceAndMinLuggageCount(@Param("luggageServiceId") Long luggageServiceId);
@@ -90,6 +96,7 @@ public interface LuggageBookingJpa extends JpaRepository<LuggageBooking, Long> {
     @Query("SELECT lb FROM LuggageBooking lb WHERE lb.luggageService.id = :luggageServiceId AND lb.specialRequests LIKE '%giorn%'")
     List<LuggageBooking> findByLuggageServiceAndLongTerm(@Param("luggageServiceId") Long luggageServiceId);
     
+    
     // Prenotazioni attive
     @Query("SELECT lb FROM LuggageBooking lb WHERE lb.luggageService.id = :luggageServiceId AND lb.dropOffTime <= :currentTime AND lb.status IN :activeStatuses")
     List<LuggageBooking> findActiveBookings(@Param("luggageServiceId") Long luggageServiceId,
@@ -101,4 +108,8 @@ public interface LuggageBookingJpa extends JpaRepository<LuggageBooking, Long> {
            "WHERE (:area IS NULL OR LOWER(loc.city) LIKE LOWER(CONCAT('%', :area, '%')) " +
            "OR LOWER(loc.address) LIKE LOWER(CONCAT('%', :area, '%')))")
     List<LuggageBooking> findByServiceArea(@Param("area") String area);
+
+    // WARMUP - Trova tutte le prenotazioni con certi stati e carica il servizio (join fetch)
+    @Query("SELECT lb FROM LuggageBooking lb JOIN FETCH lb.luggageService WHERE lb.status IN :statuses")
+    List<LuggageBooking> findAllByStatusInWithService(@Param("statuses") java.util.Collection<BookingStatus> statuses);
 }

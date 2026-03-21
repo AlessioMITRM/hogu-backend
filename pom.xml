@@ -56,6 +56,14 @@
 		    <version>2.2.6</version>
 		</dependency>
 
+        <!-- DevTools -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Spring Boot Core -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -91,6 +99,18 @@
 		    <groupId>org.springframework.boot</groupId>
 		    <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
+
+        <!-- Redis -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- RabbitMQ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
 
         <!-- Actuator -->
         <dependency>
@@ -131,6 +151,13 @@
 		    <artifactId>stripe-java</artifactId>
 		    <version>24.0.0</version>
 		</dependency>
+
+        <!-- Gson (fix for NoClassDefFoundError: com/google/gson/ReflectionAccessFilter) -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
 		
 		<!-- Per PayPal -->
 		<dependency>
@@ -179,6 +206,10 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <fork>true</fork>
+                    <addResources>true</addResources>
+                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -6,12 +6,20 @@ public interface EmailService {
 
 	String generateOtp();
 
-	void sendOtpEmail(String recipientEmail, String otp);
+	void sendOtpEmail(String recipientEmail, String otp, String language);
 
-	void sendEmail(String recipientEmail, EmailConstants emailConstants);
+	void sendEmail(String recipientEmail, EmailConstants emailConstants, String language);
 
-	void sendEmailForRejectAccount(String recipientEmail, String motivation);
+	void sendEmailForRejectAccount(String recipientEmail, String motivation, String language);
 
-	void sendOtpEmailForResetPassword(String recipientEmail, String otp);
+	void sendOtpEmailForResetPassword(String recipientEmail, String otp, String language);
+
+	void sendEmailForAccountActivation(String recipientEmail, String language);
+
+	void sendEmailForAccountDeactivation(String recipientEmail, String language);
+
+	void sendEmailForAccountBanned(String recipientEmail, String language);
+
+	void sendEmailForAccountDeletion(String recipientEmail, String language);
 
 }

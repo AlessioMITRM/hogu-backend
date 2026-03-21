@@ -13,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import us.hogu.common.constants.ErrorConstants;
 import us.hogu.controller.dto.response.ErrorResponseDto;
@@ -31,8 +32,7 @@ public class GlobalExceptionHandler {
         ErrorResponseDto response = new ErrorResponseDto(
                 ErrorConstants.ACCESS_DENIED.name(),
                 ErrorConstants.ACCESS_DENIED.getMessage(),
-                new Date()
-        );
+                new Date());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
@@ -40,13 +40,13 @@ public class GlobalExceptionHandler {
      * Gestisce le eccezioni di autenticazione fallita (401 Unauthorized).
      */
     @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
-    public ResponseEntity<ErrorResponseDto> handleAuthenticationException(org.springframework.security.core.AuthenticationException ex) {
+    public ResponseEntity<ErrorResponseDto> handleAuthenticationException(
+            org.springframework.security.core.AuthenticationException ex) {
         logger.warn("Autenticazione fallita", ex);
         ErrorResponseDto response = new ErrorResponseDto(
                 ErrorConstants.UNAUTHORIZED.name(),
                 ErrorConstants.UNAUTHORIZED.getMessage(),
-                new Date()
-        );
+                new Date());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
@@ -57,18 +57,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponseDto> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
         List<String> errors = ex.getBindingResult()
-                                .getFieldErrors()
-                                .stream()
-                                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                                .collect(Collectors.toList());
+                .getFieldErrors()
+                .stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.toList());
 
         String message = String.join("; ", errors);
 
         ErrorResponseDto response = new ErrorResponseDto(
                 ErrorConstants.VALIDATION_ERROR.name(),
                 message,
-                new Date()
-        );
+                new Date());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
@@ -80,11 +79,10 @@ public class GlobalExceptionHandler {
         ErrorResponseDto response = new ErrorResponseDto(
                 ex.getErrorCode(),
                 ex.getMessage(),
-                new Date()
-        );
+                new Date());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
-    
+
     /**
      * Gestisce le eccezioni di validazione custom definite nell'applicazione.
      */
@@ -93,11 +91,10 @@ public class GlobalExceptionHandler {
         ErrorResponseDto response = new ErrorResponseDto(
                 ErrorConstants.PARAMS_NOT_VALID.name(),
                 ErrorConstants.PARAMS_NOT_VALID.getMessage(),
-                new Date()
-        );
+                new Date());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
-    
+
     /**
      * Gestisce le eccezioni di risorsa non trovata (404 Not Found).
      * Permette di mostrare il messaggio personalizzato passato da codice.
@@ -105,12 +102,24 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponseDto> handleResourceNotFoundException(ResourceNotFoundException ex) {
         ErrorResponseDto response = new ErrorResponseDto(
-        		ErrorConstants.RESOURCE_NOT_FOUND.name(),
+                ErrorConstants.RESOURCE_NOT_FOUND.name(),
                 ex.getMessage(),
-                new Date()
-        );
-        
+                new Date());
+
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    /**
+     * Gestisce l'errore di dimensione massima dei file superata (400 Bad Request).
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponseDto> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex) {
+        logger.warn("Dimensione massima upload superata: {}", ex.getMessage());
+        ErrorResponseDto response = new ErrorResponseDto(
+                "MAX_UPLOAD_SIZE_EXCEEDED",
+                "La dimensione totale dei file caricati supera il limite massimo consentito (30MB complessivi o 10MB per singolo file).",
+                new Date());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     /**
@@ -122,10 +131,9 @@ public class GlobalExceptionHandler {
         ErrorResponseDto response = new ErrorResponseDto(
                 ErrorConstants.GENERIC_ERROR.name(),
                 ErrorConstants.GENERIC_ERROR.getMessage(),
-                new Date()
-        );
+                new Date());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
-    
+
     // TODO CREARE ERRORE PER TOKEN SCADUTO
 }

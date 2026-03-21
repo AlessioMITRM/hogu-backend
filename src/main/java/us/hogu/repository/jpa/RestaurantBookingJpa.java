@@ -51,6 +51,11 @@ public interface RestaurantBookingJpa extends JpaRepository<RestaurantBooking, L
     
     @Query("SELECT COUNT(rb) FROM RestaurantBooking rb WHERE rb.restaurantService.user.id = :providerId AND rb.status = :status")
     Long countByProviderIdAndStatus(Long providerId, BookingStatus status);
+
+    @Query("SELECT COALESCE(SUM(rb.numberOfPeople), 0) FROM RestaurantBooking rb " +
+           "WHERE rb.restaurantService.user.id = :providerId " +
+           "AND rb.status = us.hogu.model.enums.BookingStatus.COMPLETED")
+    Long sumCompletedPeopleByProviderId(Long providerId);
     
     // Per dashboard fornitore - prenotazioni recenti
     @Query("SELECT rb FROM RestaurantBooking rb WHERE rb.restaurantService.user.id = :providerId ORDER BY rb.creationDate DESC")
@@ -66,4 +71,37 @@ public interface RestaurantBookingJpa extends JpaRepository<RestaurantBooking, L
            "AND rb.reservationTime = :reservationTime " +
            "AND rb.status IN ('PENDING', 'CONFIRMED')")
     Integer countBookedPeopleByRestaurantAndTime(Long restaurantId, OffsetDateTime reservationTime);
+
+    @Query("SELECT rb FROM RestaurantBooking rb " +
+           "WHERE rb.restaurantService.id = :restaurantId " +
+           "AND rb.status = us.hogu.model.enums.BookingStatus.WAITING_PROVIDER_CONFIRMATION")
+    Page<RestaurantBooking> findPendingByRestaurantServiceId(Long restaurantId, Pageable pageable);
+
+    @Query("SELECT rb FROM RestaurantBooking rb " +
+           "WHERE rb.restaurantService.id = :restaurantId " +
+           "AND rb.reservationTime < :thresholdDate " +
+           "ORDER BY rb.reservationTime DESC")
+    Page<RestaurantBooking> findHistoryBookings(Long restaurantId, OffsetDateTime thresholdDate, Pageable pageable);
+
+    @Query("SELECT rb FROM RestaurantBooking rb " +
+           "WHERE rb.restaurantService.id = :restaurantId " +
+           "AND rb.reservationTime >= :thresholdDate " +
+           "ORDER BY rb.reservationTime ASC")
+    Page<RestaurantBooking> findUpcomingBookings(Long restaurantId, OffsetDateTime thresholdDate, Pageable pageable);
+
+    @Query("SELECT rb FROM RestaurantBooking rb " +
+           "WHERE rb.restaurantService.user.id = :providerId " +
+           "AND rb.status = us.hogu.model.enums.BookingStatus.COMPLETED " +
+           "ORDER BY rb.reservationTime DESC")
+    Page<RestaurantBooking> findCompletedByProviderId(Long providerId, Pageable pageable);
+
+    @Query("SELECT rb FROM RestaurantBooking rb " +
+           "WHERE rb.restaurantService.user.id = :providerId " +
+           "AND rb.status = us.hogu.model.enums.BookingStatus.COMPLETED")
+    List<RestaurantBooking> findCompletedByProviderIdAll(Long providerId);
+
+    @Query("SELECT rb FROM RestaurantBooking rb " +
+           "JOIN FETCH rb.restaurantService rs " +
+           "WHERE rb.status IN :statuses")
+    List<RestaurantBooking> findAllByStatusInWithService(java.util.Set<us.hogu.model.enums.BookingStatus> statuses);
 }

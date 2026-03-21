@@ -98,9 +98,21 @@ public class DevSecurityConfig extends WebSecurityConfigurerAdapter {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        config.setAllowedOrigins(List.of("https://localhost:5173", "https://192.168.0.104:5173"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowedOrigins(List.of(
+            "http://localhost:5173",
+            "https://localhost:5173",
+            "http://localhost:5174",
+            "https://localhost:5174",
+            "http://192.168.0.104:5173",
+            "https://192.168.0.104:5173",
+            "http://192.168.0.105:5173",
+            "https://192.168.0.105:5173",
+            "http://172.18.0.1:5173",
+            "https://172.18.0.1:5173"
+        ));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

@@ -27,4 +27,8 @@ public class EventPublicResponseDto {
     private OffsetDateTime startTime;
     private OffsetDateTime endTime;
     private String eventType;
+    private Integer maxCapacity;
+    private Boolean available;
+    private Long clubId;
+    private List<EventPricingConfigurationResponseDto> pricingConfigurations;
 }

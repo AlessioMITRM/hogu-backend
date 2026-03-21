@@ -12,6 +12,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import us.hogu.configuration.security.constants.JwtNameParamsHUConstants;
 import us.hogu.model.User;
 
 @Component
@@ -33,9 +34,12 @@ public class JwtTokenProvider {
         
         return Jwts.builder()
             .setSubject(user.getId().toString())
-            .claim("userId", user.getId())
-            .claim("email", user.getEmail())
-            .claim("role", user.getRole().name())
+            .claim(JwtNameParamsHUConstants.UTSER_ID, user.getId())
+            .claim(JwtNameParamsHUConstants.EMAIL, user.getEmail())
+            .claim(JwtNameParamsHUConstants.USER_ROLE, user.getRole().name())
+            .claim(JwtNameParamsHUConstants.NAME, user.getName())
+            .claim(JwtNameParamsHUConstants.SURNAME, user.getSurname())
+            .claim(JwtNameParamsHUConstants.SERVICE_LOCALES, user.getServiceLocales())
             .setIssuedAt(now)
             .setExpiration(expiryDate)
             .signWith(getSigningKey(), SignatureAlgorithm.HS512)

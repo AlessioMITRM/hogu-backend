@@ -1,0 +1,11 @@
+hogu:
+  client:
+    url: https://localhost:5173
+
+availability:
+  warmup:
+    enabled: true
+    flushNamespace:
+      enabled: true
+  redisAsPrimary:
+    enabled: false

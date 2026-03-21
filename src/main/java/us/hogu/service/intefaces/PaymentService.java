@@ -7,6 +7,8 @@ import us.hogu.client.feign.dto.request.StripePaymentRequestDto;
 import us.hogu.client.feign.dto.response.PaymentResponseDto;
 import us.hogu.model.Payment;
 
+import us.hogu.model.enums.ServiceType;
+
 public interface PaymentService {
 
 	PaymentResponseDto processStripePayment(StripePaymentRequestDto requestDto, Long userId);
@@ -19,6 +21,17 @@ public interface PaymentService {
 
 	PaymentResponseDto getPaymentByIdBooking(Long bookingId, Long userId);
 
-	void requestRefund(Long paymentId, Long userId, String reason);
+	us.hogu.controller.dto.response.BookingInfoDTO getBookingInfoByPaymentId(String paymentId, Long userId);
+	
+	us.hogu.controller.dto.response.BookingInfoDTO getPendingBooking(Long userId);
+    
+    void cancelBooking(Long bookingId, ServiceType serviceType, Long userId);
+    
+    void cancelBookingByProvider(Long bookingId, ServiceType serviceType, Long providerId, String reason);
+    
+    void confirmBookingByProvider(Long bookingId, ServiceType serviceType, Long providerId);
 
+    void completeBookingByProvider(Long bookingId, ServiceType serviceType, Long providerId);
+
+	void requestRefund(Long paymentId, Long userId, String reason);
 }

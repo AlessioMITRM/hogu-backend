@@ -1,11 +1,13 @@
 package us.hogu.model.enums;
 
 public enum UserStatus {
-    PENDING("IN_ATTESA", 0),        // registrazione in attesa OTP
-    ACTIVE("ATTIVO", 1),            // account attivo
-    SUSPENDED("SOSPESO", 2),        // sospeso temporaneamente
-    DEACTIVATED("DISATTIVATO", 3),  // account disattivato
-    PENDING_ADMIN_APPROVAL("IN_ATTESA_APPROVAZIONE_ADMIN", 4); // account in attesa di attivazione dell'admin
+    PENDING("IN_ATTESA", 0), // registrazione in attesa OTP
+    ACTIVE("ATTIVO", 1), // account attivo
+    SUSPENDED("SOSPESO", 2), // sospeso temporaneamente
+    DEACTIVATED("DISATTIVATO", 3), // account disattivato
+    PENDING_ADMIN_APPROVAL("IN_ATTESA_APPROVAZIONE_ADMIN", 4), // account in attesa di attivazione dell'admin
+    BANNED("BANNATO", 5), // account bannato
+    DELETED("CANCELLATO", 6); // account eliminato (GDPR)
 
     private final String italianValue;
     private final int statusId;

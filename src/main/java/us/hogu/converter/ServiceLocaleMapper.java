@@ -24,6 +24,8 @@ public class ServiceLocaleMapper {
                         .language(locale.getLanguage())
                         .country(locale.getCountry())
                         .state(locale.getState())
+                        .province(locale.getProvince())
+                        .postalCode(locale.getPostalCode())
                         .city(locale.getCity())
                         .address(locale.getAddress())
                         .build())
@@ -37,13 +39,16 @@ public class ServiceLocaleMapper {
 
         return requestDtos.stream()
                 .map((ServiceLocaleRequestDto locale) -> ServiceLocale.builder()
-                        .serviceType(ServiceType.NCC)
+                        .serviceType(locale.getServiceType() != null ? locale.getServiceType() : ServiceType.NCC)
                         .language(LanguageType.fromValue(locale.getLanguage()).getValue())
                         .country(locale.getCountry())
                         .state(locale.getState())
+                        .province(locale.getProvince())
+                        .postalCode(locale.getPostalCode())
                         .city(locale.getCity())
                         .address(locale.getAddress())
                         .build())
                 .collect(Collectors.toList());
     }
+    
 }

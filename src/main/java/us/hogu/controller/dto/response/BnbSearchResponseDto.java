@@ -19,6 +19,7 @@ public class BnbSearchResponseDto {
     @Builder
     public static class BnbSearchResultDto {
         private String id;
+        private Long serviceId;
         private String name;
         private List<ServiceLocaleResponseDto> locales;
         private String description;
@@ -29,6 +30,8 @@ public class BnbSearchResponseDto {
         private List<String> amenities;
         private List<String> images;
         private Coordinates coordinates;
+        @Builder.Default
+        private boolean available = true;
 
         @Data
         @Builder

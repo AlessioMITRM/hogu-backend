@@ -11,7 +11,7 @@ import us.hogu.model.Payment;
 import us.hogu.model.enums.PaymentStatus;
 
 public interface PaymentJpa extends JpaRepository<Payment, Long> {
-    Optional<Payment> findByBooking_Id(Long bookingId);
+    List<Payment> findByBooking_Id(Long bookingId);
     
     List<Payment> findByUser_Id(Long userId);
         

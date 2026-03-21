@@ -29,4 +29,8 @@ public class StripePaymentRequestDto {
     private String description;
     
     private String customerEmail;
+    
+    private String returnUrl;
+    
+    private String cancelUrl;
 }

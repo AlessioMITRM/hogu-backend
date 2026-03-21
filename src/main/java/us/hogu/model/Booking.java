@@ -2,6 +2,7 @@ package us.hogu.model;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -14,6 +15,7 @@ import javax.persistence.InheritanceType;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Column;
+import javax.persistence.PrePersist;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.PastOrPresent;
 
@@ -37,51 +39,52 @@ public abstract class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
+    private String statusReason;
+
     @NotNull(message = "L'utente è obbligatorio")
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-    
-    @NotNull(message = "Il tipo di servizio è obbligatorio")
-    @Enumerated(EnumType.ORDINAL)
-    @Column(nullable = false)
-    private ServiceType serviceType;
-    
-    @NotNull(message = "L'ID del servizio è obbligatorio")
-    @Column(name = "service_id", nullable = false)
-    private Long serviceId;
-        
+
     @NotNull(message = "Lo stato della prenotazione è obbligatorio")
     @Enumerated(EnumType.ORDINAL)
     @Column(nullable = false, length = 50)
     private BookingStatus status;
-    
+
     @NotNull(message = "L'importo totale è obbligatorio")
     @Column(nullable = false)
     private BigDecimal totalAmount;
-    
+
     private String billingFirstName;
-    
+
     private String billingLastName;
-    
+
     private String billingCompanyName;
-    
+
     @NotNull(message = "Indirizzo della fatturazione obbligatorio")
     @Column(nullable = false)
     private String billingAddress;
-    
-    private String billingTaxCode;     // Codice fiscale
-    
-    private String billingVatNumber;   // Partita IVA
-    
+
+    private String billingTaxCode; // Codice fiscale
+
+    private String billingVatNumber; // Partita IVA
+
     @NotNull(message = "Email Della fattura obbligatoria")
     @Column(nullable = false)
     private String billingEmail;
-    
-    private boolean invoiceProcessed;  // Fattura elaborata
-    
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private OffsetDateTime creationDate;
+
+    @Column(unique = true, updatable = false, length = 36)
+    private String bookingCode;
+
+    @PrePersist
+    protected void onCreate() {
+        if (bookingCode == null) {
+            bookingCode = UUID.randomUUID().toString();
+        }
+    }
 }

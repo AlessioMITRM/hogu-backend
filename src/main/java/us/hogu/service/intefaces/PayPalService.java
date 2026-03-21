@@ -11,6 +11,10 @@ public interface PayPalService {
 
 	PaymentResponseDto getPaymentDetails(String paymentId);
 
+    PaymentResponseDto capturePayment(String paymentId);
+
+    boolean voidPayment(String paymentId);
+
 	boolean refundPayment(String paymentId, String reason);
 
 	boolean cancelPayment(String paymentId);

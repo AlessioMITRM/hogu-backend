@@ -69,18 +69,6 @@ public class RestaurantPublicController {
         return ResponseEntity.ok(response);
     }
 
-   /* @GetMapping("/search")
-    @Operation(summary = "Cerca ristoranti", description = "Cerca ristoranti per nome o indirizzo")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Ricerca completata con successo")
-    })
-    public ResponseEntity<List<ServiceSummaryResponseDto>> searchRestaurants(
-            @Parameter(description = "Termine di ricerca") @RequestParam String searchTerm) {
-        List<ServiceSummaryResponseDto> response = restaurantService.searchRestaurants(searchTerm);
-        
-        return ResponseEntity.ok(response);
-    }*/
-
     @PostMapping("/search")
     @Operation(summary = "Ricerca avanzata ristoranti", description = "Ricerca ristoranti con parametri avanzati")
     @ApiResponses(value = {

@@ -35,9 +35,18 @@ public class ServiceDetailResponseDto {
 	
 	private BigDecimal basePrice;
     
+    private BigDecimal estimatedPrice;
+    
 	private List<String> images;
     
     private Boolean publicationStatus;
     
     private boolean available;
+
+    private Double pickupLatitude;
+    private Double pickupLongitude;
+    private Double destinationLatitude;
+    private Double destinationLongitude;
+    
+    private Double distanceKm;
 }

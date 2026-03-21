@@ -36,7 +36,7 @@ import us.hogu.repository.projection.NccManagementProjection;
 import us.hogu.service.intefaces.NccService;
 
 @RestController
-@RequestMapping("/api/services/ncc/customer")
+@RequestMapping("/api/customer/services/ncc")
 @RequiredArgsConstructor
 @Tag(name = "NCC Services Customer", description = "APIs per gestione servizi NCC e prenotazioni per utente Customer")
 @PreAuthorize("hasAnyRole(T(us.hogu.model.enums.UserRole).CUSTOMER.name())")

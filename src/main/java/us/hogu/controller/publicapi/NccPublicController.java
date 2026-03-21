@@ -52,9 +52,25 @@ public class NccPublicController {
         @ApiResponse(responseCode = "404", description = "Servizio NCC non trovato")
     })
     public ResponseEntity<ServiceDetailResponseDto> getNccServiceDetail(
-            @Parameter(description = "ID del servizio NCC") @PathVariable Long id) 
+            @Parameter(description = "ID del servizio NCC") @PathVariable Long id,
+            @RequestParam(required = false) String date,
+            @RequestParam(required = false) String time,
+            @RequestParam(required = false) Integer passengers,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String fromCity,
+            @RequestParam(required = false) String fromProvince,
+            @RequestParam(required = false) String fromCountry,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) String toCity,
+            @RequestParam(required = false) String toProvince,
+            @RequestParam(required = false) String toCountry,
+            @RequestParam(required = false) String tripType) 
     {
-        ServiceDetailResponseDto response = nccService.getNccServiceDetail(id);
+        ServiceDetailResponseDto response = nccService.getNccServiceDetail(
+        		id, date, time, passengers, 
+        		from, fromCity, fromProvince, fromCountry,
+        		to, toCity, toProvince, toCountry,
+        		tripType);
         
         return ResponseEntity.ok(response);
     }

@@ -13,6 +13,10 @@ public interface StripeService {
 
 	PaymentResponseDto confirmPayment(String paymentIntentId);
 
+	PaymentResponseDto capturePayment(String paymentIntentId);
+
+	PaymentResponseDto voidPayment(String paymentIntentId);
+
 	PaymentIntent createPaymentIntent(BigDecimal amount, String currency, String bookingId);
 
 	boolean processRefund(String paymentIntentId, String reason);

@@ -18,6 +18,8 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 
+import org.hibernate.annotations.CreationTimestamp;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -49,7 +51,10 @@ public class BnbRoom {
 
     private BigDecimal basePricePerNight;
 
-    private Boolean available;
+    private Boolean publicationStatus;
+    
+    @CreationTimestamp
+    private OffsetDateTime creationDate;
 
 	@Convert(converter = StringListConverter.class)
 	@Column(name = "images", columnDefinition = "TEXT")

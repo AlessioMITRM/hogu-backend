@@ -1,10 +1,12 @@
 package us.hogu.model.enums;
 
 public enum VerificationStatusServiceEY {
-    PENDING("IN_ATTESA", 0),        // ATTESA APPROVAZIONE ADMIN
-    ACTIVE("ATTIVO", 1),            // SERVIZIO ATTIVO
-    REFUSED("RIFIUTATO", 3),        // SERVIZIO RIFIUTATO
-    SUSPENDED("SOSPESO", 2);        // SERVIZIO SOSPESO
+    PENDING("IN_ATTESA", 0), // ATTESA APPROVAZIONE ADMIN
+    ACTIVE("ATTIVO", 1), // SERVIZIO ATTIVO
+    REFUSED("RIFIUTATO", 3), // SERVIZIO RIFIUTATO
+    SUSPENDED("SOSPESO", 2), // SERVIZIO SOSPESO
+    BANNED("BANNATO", 4), // SERVIZIO BANNATO
+    DELETED("CANCELLATO", 5); // SERVIZIO ELIMINATO (GDPR)
 
     private final String italianValue;
     private final int statusId;

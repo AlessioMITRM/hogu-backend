@@ -25,8 +25,12 @@ import us.hogu.controller.dto.response.BnbBookingResponseDto;
 import us.hogu.service.intefaces.BnbService;
 import us.hogu.service.intefaces.ClubService;
 
+import us.hogu.controller.dto.request.BnbBookingRequestDto;
+import javax.validation.Valid;
+import org.springframework.web.bind.annotation.RequestBody;
+
 @RestController
-@RequestMapping("/api/services/bnb/customer")
+@RequestMapping("/api/customer/services/bnb")
 @RequiredArgsConstructor
 @Tag(name = "Bnb Services Customer", description = "APIs per gestione Bnb del Customer")
 @PreAuthorize("hasAnyRole(T(us.hogu.model.enums.UserRole).CUSTOMER.name())")
@@ -64,12 +68,9 @@ public class BnbCustomerController {
     @PostMapping("/bookings")
     public ResponseEntity<BnbBookingResponseDto> createBooking(
             @RequestParam Long userId,
-            @RequestParam Long roomId,
-            @RequestParam LocalDate checkIn,
-            @RequestParam LocalDate checkOut,
-            @RequestParam Integer guests) {
+            @RequestBody @Valid BnbBookingRequestDto requestDto) {
 
-        return ResponseEntity.ok(bnbService.createBooking(userId, roomId, checkIn, checkOut, guests));
+        return ResponseEntity.ok(bnbService.createBooking(requestDto, userId));
     }
 
 }

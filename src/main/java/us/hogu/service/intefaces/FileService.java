@@ -21,4 +21,5 @@ public interface FileService {
 	void updateImagesPathCustom(Path basePath, List<String> oldImageNames, List<MultipartFile> newImages)
 			throws IOException;
 
+	void deleteServiceImages(Long serviceId, ServiceType serviceType);
 }

@@ -18,13 +18,15 @@ curl -X POST "http://localhost:8080/api/auth/provider-register" \
   -F "documents[0].approved=true" \
   -F "documents[0].file=@/percorso/al/file/documento1.pdf"
 
-
 ## Profilo di collaudo/sviluppo
 - Per avviare l'applicazione in ambiente di collaudo/sviluppo, utilizzare il profilo `stag`.
 - In Eclipse, inserire nei **Program Arguments** della configurazione Spring:
 - spring.profiles.active=stag
 - Per fare accesso con Jwt e cuaa per il momento utilizzare:
 
+docker compose -f docker-compose.dev.yml up -d
+
+Da lanciare per sviluppo tramite telegram python telegram_bot.py
 
 # Processi e flussi
 
@@ -120,6 +122,13 @@ curl -X POST "http://localhost:8080/api/auth/provider-register" \
 	
 	Frontend
 	   - Mostra conferma pagamento all’utente
+	   
+### Flusso pagamento comune:
+	Autorizzazione (Hold/Pre-authorization):
+	
+	Stripe: puoi creare un PaymentIntent con capture_method='manual'. Questo blocca l’importo sulla carta dell’utente    senza addebitare subito.
+	
+	PayPal: puoi usare la funzione di authorization invece di sale. Blocca i fondi ma non li cattura fino all’approvazione.
 
 ### Todo da analizzare
 	- da capire come comportarsi per fornitore che vuole avere piu ruoli servizio (proposta pannello di postaccesso per 	la 	selezioni del servizio che si vuole loggare)
@@ -164,3 +173,27 @@ curl -X POST "http://localhost:8080/api/auth/provider-register" \
 	Una volta fatto, i picchi sporadici (100k–500k visite al mese) verranno gestiti dal pool che alza e abbassa il numero di Droplet in automatico, così paghi di più solo nei giorni “caldi”.
 
 
+### Test automatici
+	UTENTE PER POTER FARE PRENOTAZIONI: customer@gmail.com pwd: 123456
+	FORNITORE NCC: ncc@gmail.com pwd: 123456
+	ADMIN: admin@gmail.com pwd: 123456
+	FORNITORE RISTORANTE: resturant@gmail.com pwd: 123456
+	FORNITORE BAGAGLI: luggage@gmail.com pwd: 123456
+	FORNITORE CLUB: club@gmail.com pwd: 123456
+	FORNITORE BNB: bnb@gmail.com pwd: 123456
+
+	Prenotazione con stripe:
+			| Carta            | Tipo    | Numero              | Scadenza         | CVC                 |
+			| ---------------- | ------- | ------------------- | ---------------- | ------------------- |
+			| Visa             | Credito | 4242 4242 4242 4242 | Qualsiasi futura | Qualsiasi           |
+			| Mastercard       | Credito | 5555 5555 5555 4444 | Qualsiasi futura | Qualsiasi           |
+			| American Express | Credito | 3782 822463 10005   | Qualsiasi futura | Qualsiasi (4 cifre) |
+			| Discover         | Credito | 6011 1111 1111 1117 | Qualsiasi futura | Qualsiasi           |
+			| Diners Club      | Credito | 3056 930902 5904    | Qualsiasi futura | Qualsiasi           |
+			| JCB              | Credito | 3566 1111 1111 1113 | Qualsiasi futura | Qualsiasi           |
+
+		Carte di test per scenari specifici:
+			Pagamento rifiutato: 4000 0000 0000 9995 → simula un pagamento rifiutato.
+			Pagamento insufficiente fondi: 4000 0000 0000 9999
+			Pagamento segnalato come frode: 4100 0000 0000 0019
+			Autenticazione richiesta (3D Secure): 4000 0025 0000 3155

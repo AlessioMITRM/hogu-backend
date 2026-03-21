@@ -4,7 +4,19 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.paypal.api.payments.*;
+import com.paypal.api.payments.Amount;
+import com.paypal.api.payments.Authorization;
+import com.paypal.api.payments.Capture;
+import com.paypal.api.payments.Item;
+import com.paypal.api.payments.ItemList;
+import com.paypal.api.payments.Links;
+import com.paypal.api.payments.Payer;
+import com.paypal.api.payments.PaymentExecution;
+import com.paypal.api.payments.RedirectUrls;
+import com.paypal.api.payments.Refund;
+import com.paypal.api.payments.RefundRequest;
+import com.paypal.api.payments.Sale;
+import com.paypal.api.payments.Transaction;
 import com.paypal.base.rest.APIContext;
 import com.paypal.base.rest.PayPalRESTException;
 
@@ -17,13 +29,17 @@ import us.hogu.client.feign.dto.response.PaymentResponseDto;
 import us.hogu.common.constants.ErrorConstants;
 import us.hogu.exception.ValidationException;
 
+import lombok.extern.slf4j.Slf4j;
+
 import javax.annotation.PostConstruct;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
+@Slf4j
 @Service
 @Transactional
 public class PayPalServiceImpl implements PayPalService {
@@ -36,6 +52,9 @@ public class PayPalServiceImpl implements PayPalService {
 
     @Value("${paypal.mode}")
     private String mode; // "sandbox" or "live"
+    
+    @Value("${hogu.client.url}")
+    private String clientUrl;
 
     private APIContext apiContext;
     private final PaymentJpa paymentJpa;
@@ -58,7 +77,7 @@ public class PayPalServiceImpl implements PayPalService {
             // Amount
             Amount amount = new Amount();
             amount.setCurrency(request.getCurrency());
-            amount.setTotal(String.format("%.2f", request.getAmount()));
+            amount.setTotal(String.format(Locale.US, "%.2f", request.getAmount()));
 
             // Transaction
             Transaction transaction = new Transaction();
@@ -75,7 +94,7 @@ public class PayPalServiceImpl implements PayPalService {
                     item.setName(itemDto.getName())
                         .setDescription(itemDto.getDescription())
                         .setCurrency(request.getCurrency())
-                        .setPrice(String.format("%.2f", itemDto.getPrice()))
+                        .setPrice(String.format(Locale.US, "%.2f", itemDto.getPrice()))
                         .setQuantity(String.valueOf(itemDto.getQuantity()))
                         .setSku(itemDto.getSku());
                     items.add(item);
@@ -93,14 +112,20 @@ public class PayPalServiceImpl implements PayPalService {
 
             // Payment
             com.paypal.api.payments.Payment payment = new com.paypal.api.payments.Payment();
-            payment.setIntent("sale");
+            payment.setIntent("authorize");
             payment.setPayer(payer);
             payment.setTransactions(transactions);
 
             // Redirect URLs
             RedirectUrls redirectUrls = new RedirectUrls();
-            redirectUrls.setCancelUrl("https://yourdomain.com/payment/paypal/cancel");
-            redirectUrls.setReturnUrl("https://yourdomain.com/payment/paypal/success");
+            
+            String cancelUrl = request.getCancelUrl() != null ? request.getCancelUrl() : clientUrl + "/payment/paypal/cancel";
+            String returnUrl = request.getReturnUrl() != null ? request.getReturnUrl() : clientUrl + "/payment/paypal/success";
+            
+            log.info("PayPal Create Payment - Redirect URLs set to: Return='{}', Cancel='{}'", returnUrl, cancelUrl);
+            
+            redirectUrls.setCancelUrl(cancelUrl);
+            redirectUrls.setReturnUrl(returnUrl);
             payment.setRedirectUrls(redirectUrls);
 
             // Create payment
@@ -118,6 +143,7 @@ public class PayPalServiceImpl implements PayPalService {
                 .paymentIdIntent(createdPayment.getId())
                 .amount(request.getAmount())
                 .currency(request.getCurrency())
+                .approvalUrl(approvalUrl)
                 .build();
 
         } catch (PayPalRESTException e) {
@@ -145,9 +171,21 @@ public class PayPalServiceImpl implements PayPalService {
 
             // Check payment state
             if ("approved".equals(executedPayment.getState())) {
-                updatePaymentStatus(paymentId, PaymentStatus.COMPLETED);
+                // If intent was authorize, the payment is now authorized but not captured
+                // Check if there are related resources (authorizations)
+                // Note: executedPayment.getState() is "approved" for both sale and authorize intents after execution
+                
+                // Determine status based on intent or transactions
+                // For 'authorize' intent, we look for authorization ID in transactions
+                boolean isAuthorized = executedPayment.getTransactions().stream()
+                    .flatMap(t -> t.getRelatedResources().stream())
+                    .anyMatch(r -> r.getAuthorization() != null);
+                
+                PaymentStatus newStatus = isAuthorized ? PaymentStatus.AUTHORIZED : PaymentStatus.COMPLETED;
+                
+                updatePaymentStatus(paymentId, newStatus);
                 return PaymentResponseDto.builder()
-                    .paymentStatus(PaymentStatus.COMPLETED)
+                    .paymentStatus(newStatus)
                     .paymentIdIntent(executedPayment.getId())
                     .amount(new BigDecimal(executedPayment.getTransactions().get(0).getAmount().getTotal()))
                     .currency(executedPayment.getTransactions().get(0).getAmount().getCurrency())
@@ -184,6 +222,93 @@ public class PayPalServiceImpl implements PayPalService {
 
         } catch (PayPalRESTException e) {
             throw new ValidationException(ErrorConstants.ERROR_PAYMENT_PAYPAL.name(), ErrorConstants.ERROR_PAYMENT_PAYPAL.getMessage());
+        }
+    }
+
+    @Override
+    public PaymentResponseDto capturePayment(String paymentId) {
+        try {
+            // 1. Retrieve the payment to find the authorization ID
+            com.paypal.api.payments.Payment payment = com.paypal.api.payments.Payment.get(apiContext, paymentId);
+            
+            // 2. Extract Authorization ID
+            String authorizationId = payment.getTransactions().stream()
+                .flatMap(t -> t.getRelatedResources().stream())
+                .filter(r -> r.getAuthorization() != null)
+                .map(r -> r.getAuthorization().getId())
+                .findFirst()
+                .orElseThrow(() -> new ValidationException(
+                    ErrorConstants.ERROR_PAYMENT_PAYPAL.name(), 
+                    "Nessuna autorizzazione trovata per questo pagamento"));
+
+            // 3. Create Capture object
+            Capture capture = new Capture();
+            Amount amount = new Amount();
+            // Use currency and amount from the transaction
+            String currency = payment.getTransactions().get(0).getAmount().getCurrency();
+            String totalAmount = payment.getTransactions().get(0).getAmount().getTotal();
+            
+            amount.setCurrency(currency);
+            amount.setTotal(totalAmount);
+            capture.setAmount(amount);
+            capture.setIsFinalCapture(true);
+
+            // 4. Execute Capture
+            Authorization authorization = new Authorization();
+            authorization.setId(authorizationId);
+            Capture capturedPayment = authorization.capture(apiContext, capture);
+
+            // 5. Check status and return response
+            if ("completed".equals(capturedPayment.getState())) {
+                updatePaymentStatus(paymentId, PaymentStatus.COMPLETED);
+                
+                return PaymentResponseDto.builder()
+                    .paymentStatus(PaymentStatus.COMPLETED)
+                    .paymentIdIntent(capturedPayment.getId()) // This is the capture ID, not payment ID
+                    .amount(new BigDecimal(capturedPayment.getAmount().getTotal()))
+                    .currency(capturedPayment.getAmount().getCurrency())
+                    .build();
+            } else {
+                return PaymentResponseDto.builder()
+                    .paymentStatus(PaymentStatus.FAILED)
+                    .errorMessage("Stato capture: " + capturedPayment.getState())
+                    .build();
+            }
+
+        } catch (PayPalRESTException e) {
+            log.error("Error capturing PayPal payment", e);
+            throw new ValidationException(ErrorConstants.ERROR_PAYMENT_PAYPAL.name(), "Errore durante la cattura del pagamento: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean voidPayment(String paymentId) {
+        try {
+            // 1. Retrieve the payment to find the authorization ID
+            com.paypal.api.payments.Payment payment = com.paypal.api.payments.Payment.get(apiContext, paymentId);
+            
+            // 2. Extract Authorization ID
+            String authorizationId = payment.getTransactions().stream()
+                .flatMap(t -> t.getRelatedResources().stream())
+                .filter(r -> r.getAuthorization() != null)
+                .map(r -> r.getAuthorization().getId())
+                .findFirst()
+                .orElseThrow(() -> new ValidationException(
+                    ErrorConstants.ERROR_PAYMENT_PAYPAL.name(), 
+                    "Nessuna autorizzazione trovata per questo pagamento"));
+
+            // 3. Void Authorization
+            Authorization authorization = new Authorization();
+            authorization.setId(authorizationId);
+            authorization.doVoid(apiContext);
+            
+            // 4. Update status locally
+            updatePaymentStatus(paymentId, PaymentStatus.FAILED);
+            return true;
+
+        } catch (PayPalRESTException e) {
+            log.error("Error voiding PayPal payment", e);
+            throw new ValidationException(ErrorConstants.ERROR_PAYMENT_PAYPAL.name(), "Errore durante l'annullamento del pagamento: " + e.getMessage());
         }
     }
 

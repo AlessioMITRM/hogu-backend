@@ -43,4 +43,7 @@ public interface UserService {
 
 	void passwordResetDashboard(UserAccount userAccount, PasswordResetDashboard requestDto);
 
+	void deleteCustomerAccount(Long accountId);
+
+	void deleteProviderAccount(Long accountId);
 }

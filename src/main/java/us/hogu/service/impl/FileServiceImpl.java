@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,7 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public void uploadImages(Long id, ServiceType serviceType,
-                             List<String> imageNames, List<MultipartFile> images) throws IOException {
+            List<String> imageNames, List<MultipartFile> images) throws IOException {
         if (images == null || images.isEmpty()) {
             return;
         }
@@ -32,13 +33,12 @@ public class FileServiceImpl implements FileService {
         for (MultipartFile image : images) {
             validateImageFormat(image);
 
-            String fileName = UUID.randomUUID() + "-" + image.getOriginalFilename();
+            String fileName = generateSafeFileName(image);
             Path path = Paths.get(
                     ImageUtils.STORAGE_ROOT,
                     serviceType.name().toLowerCase(),
                     id.toString(),
-                    fileName
-            );
+                    fileName);
             Files.createDirectories(path.getParent());
             Files.write(path, image.getBytes());
             imageNames.add(fileName);
@@ -55,7 +55,7 @@ public class FileServiceImpl implements FileService {
         for (MultipartFile image : images) {
             validateImageFormat(image);
 
-            String fileName = UUID.randomUUID() + "-" + image.getOriginalFilename();
+            String fileName = generateSafeFileName(image);
             Path path = basePath.resolve(fileName);
             Files.createDirectories(path.getParent());
             Files.write(path, image.getBytes());
@@ -65,7 +65,7 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public void updateImages(Long serviceId, ServiceType serviceType, List<String> oldImageNames,
-                             List<MultipartFile> newImages) throws IOException {
+            List<MultipartFile> newImages) throws IOException {
         if (newImages == null || newImages.isEmpty()) {
             return; // Non cambia nulla se non ci sono nuove immagini
         }
@@ -85,7 +85,7 @@ public class FileServiceImpl implements FileService {
         for (MultipartFile image : newImages) {
             validateImageFormat(image);
 
-            String fileName = UUID.randomUUID() + "-" + image.getOriginalFilename();
+            String fileName = generateSafeFileName(image);
             Path path = serviceFolder.resolve(fileName);
             Files.createDirectories(path.getParent());
             Files.write(path, image.getBytes());
@@ -117,7 +117,7 @@ public class FileServiceImpl implements FileService {
         for (MultipartFile image : newImages) {
             validateImageFormat(image);
 
-            String fileName = UUID.randomUUID() + "-" + image.getOriginalFilename();
+            String fileName = generateSafeFileName(image);
             Path path = basePath.resolve(fileName);
             Files.createDirectories(path.getParent());
             Files.write(path, image.getBytes());
@@ -129,15 +129,38 @@ public class FileServiceImpl implements FileService {
         oldImageNames.addAll(newImageNames);
     }
 
-    // Metodo privato per centralizzare la validazione del formato
     private void validateImageFormat(MultipartFile image) {
         String originalName = image.getOriginalFilename();
         if (originalName == null ||
-            !(originalName.toLowerCase().endsWith(ImageUtils.PNG_FORMAT) ||
-              originalName.toLowerCase().endsWith(ImageUtils.JPG_FORMAT) ||
-              originalName.toLowerCase().endsWith(ImageUtils.JPEG_FORMAT))) {
+                !(originalName.toLowerCase().endsWith(ImageUtils.PNG_FORMAT) ||
+                        originalName.toLowerCase().endsWith(ImageUtils.JPG_FORMAT) ||
+                        originalName.toLowerCase().endsWith(ImageUtils.JPEG_FORMAT))) {
             throw new ValidationException(ErrorConstants.FORMAT_IMAGE_NOT_ALLOWED.name(),
                     ErrorConstants.FORMAT_IMAGE_NOT_ALLOWED.getMessage());
+        }
+    }
+
+    private String generateSafeFileName(MultipartFile image) {
+        String original = image.getOriginalFilename();
+        String extension = "";
+        if (original != null) {
+            int dotIndex = original.lastIndexOf('.');
+            if (dotIndex != -1 && dotIndex < original.length() - 1) {
+                extension = original.substring(dotIndex);
+            }
+        }
+        String uuid = UUID.randomUUID().toString();
+        return uuid + extension;
+    }
+
+    @Override
+    public void deleteServiceImages(Long serviceId, ServiceType serviceType) {
+        Path serviceFolder = Paths.get(ImageUtils.STORAGE_ROOT, serviceType.name().toLowerCase(), serviceId.toString());
+        try {
+            FileSystemUtils.deleteRecursively(serviceFolder);
+        } catch (IOException e) {
+            System.err.println("Errore durante l'eliminazione della cartella immagini per il servizio " + serviceId
+                    + ": " + e.getMessage());
         }
     }
 }

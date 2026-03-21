@@ -24,5 +24,7 @@ public class PaymentResponseDto {
     
     private String currency;
     
+    private String approvalUrl;
+    
     private String errorMessage;
 }

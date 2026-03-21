@@ -13,6 +13,7 @@ import us.hogu.controller.dto.request.ClubServiceRequestDto;
 import us.hogu.controller.dto.request.EventClubServiceRequestDto;
 import us.hogu.controller.dto.request.EventCreateRequestDto;
 import us.hogu.controller.dto.response.ClubBookingResponseDto;
+import us.hogu.controller.dto.response.ClubBookingValidationResponseDto;
 import us.hogu.controller.dto.response.ClubManagementResponseDto;
 import us.hogu.controller.dto.response.ClubServiceResponseDto;
 import us.hogu.controller.dto.response.EventClubServiceResponseDto;
@@ -26,8 +27,8 @@ public interface ClubService {
 
 	List<ServiceSummaryResponseDto> getActiveClubs(String searchText);
 
-    ClubServiceResponseDto getClubDetail(Long clubId);
-	
+	ClubServiceResponseDto getClubDetail(Long clubId);
+
 	List<ServiceSummaryResponseDto> getClubsWithEvents();
 
 	ClubBookingResponseDto createClubBooking(ClubBookingRequestDto requestDto, Long userId);
@@ -50,6 +51,8 @@ public interface ClubService {
 
 	Page<ClubBookingResponseDto> getClubBookings(Long providerId, Long clubId, Pageable pageable);
 
+	Page<ClubBookingResponseDto> getClubBookingsHistory(Long providerId, Long clubId, Pageable pageable);
+
 	Page<ClubBookingResponseDto> getUserClubBookings(Long userId, Pageable pageable);
 
 	Page<EventClubServiceResponseDto> getEvents(Long providerId, Long clubId, Pageable pageable);
@@ -57,12 +60,13 @@ public interface ClubService {
 	Page<EventClubServiceResponseDto> getEventsForPublic(Long clubId, Pageable pageable);
 
 	Page<us.hogu.controller.dto.response.EventPublicResponseDto> getEventsForPublicWithFilters(
-		String city, 
-		String eventType, 
-		String date, 
-		Boolean table,
-		Pageable pageable
-	);
+			String country,
+			String province,
+			String eventType,
+			String date,
+			Boolean table,
+			String language,
+			Pageable pageable);
 
 	Page<ClubBookingResponseDto> getClubBookingsPending(Long providerId, Long clubId, Pageable pageable);
 
@@ -74,5 +78,13 @@ public interface ClubService {
 
 	EventClubServiceResponseDto createEvent(Long providerId, EventClubServiceRequestDto requestDto,
 			List<MultipartFile> images) throws Exception;
+
+	void deleteEvent(Long providerId, Long eventId);
+
+	void cancelBooking(Long providerId, Long bookingId, String reason);
+
+	void acceptBooking(Long providerId, Long bookingId);
+
+	ClubBookingValidationResponseDto validateClubBookingForEvent(Long providerId, Long eventId, String bookingCode);
 
 }

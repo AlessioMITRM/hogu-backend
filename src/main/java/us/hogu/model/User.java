@@ -23,7 +23,6 @@ import lombok.ToString;
 import us.hogu.model.enums.UserRole;
 import us.hogu.model.enums.UserStatus;
 
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -34,37 +33,53 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     private String name;
-    
+
     private String surname;
-    
+
+    private String fiscalCode;
+
     @Column(unique = true)
     private String email;
-    
+
     private String passwordHash;
-    
+
     @Enumerated(EnumType.ORDINAL)
     private UserRole role;
-    
+
     @Enumerated(EnumType.ORDINAL)
     private UserStatus status;
-    
+
     @CreationTimestamp
     private OffsetDateTime creationDate;
-    
+
     private OffsetDateTime lastLogin;
-    
+
+    private String language;
+
+    private String state;
+
+    private String iban;
+
     // Relazioni
     @OneToMany(mappedBy = "user")
     @ToString.Exclude
     private List<Booking> bookings;
-    
+
     @OneToMany(mappedBy = "user")
     @ToString.Exclude
     private List<Review> reviews;
-    
+
     @OneToMany(mappedBy = "user")
     @ToString.Exclude
     private List<Notification> notifications;
+
+    @OneToMany(cascade = javax.persistence.CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    private List<ServiceLocale> serviceLocales;
+
+    @OneToMany(mappedBy = "user", cascade = javax.persistence.CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    private List<UserServiceVerification> serviceVerifications;
 }

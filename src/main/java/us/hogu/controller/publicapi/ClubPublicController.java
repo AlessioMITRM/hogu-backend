@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -79,14 +81,39 @@ public class ClubPublicController {
         if (request == null) {
             request = new EventSearchRequestDto(); 
         }
+        
+        if (request.getDate() == null || request.getDate().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Date is required");
+        }
+        if (request.getLocale() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Location is required");
+        }
 
         // Chiamata al service (lo stesso che hai creato prima)
+        String language = org.springframework.context.i18n.LocaleContextHolder.getLocale().getLanguage();
+        String province = null;
+        String country = null;
+
+        if (request.getLocale() != null) {
+            if (request.getLocale().getLanguage() != null && !request.getLocale().getLanguage().isEmpty()) {
+                language = request.getLocale().getLanguage();
+            }
+            if (request.getLocale().getProvince() != null && !request.getLocale().getProvince().trim().isEmpty()) {
+                province = request.getLocale().getProvince().trim();
+            }
+            if (request.getLocale().getCountry() != null && !request.getLocale().getCountry().trim().isEmpty()) {
+                country = request.getLocale().getCountry().trim();
+            }
+        }
+
         Page<us.hogu.controller.dto.response.EventPublicResponseDto> response = 
             clubService.getEventsForPublicWithFilters(
-                request.getLocation(), 
+                country,
+                province,
                 request.getEventType(), 
                 request.getDate(), 
                 request.getTable(),
+                language,
                 pageable
             );
 

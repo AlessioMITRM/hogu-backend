@@ -7,6 +7,7 @@ import lombok.Data;
 
 @Data
 public class BnbRoomPriceRequestDto {
+	private Long id;
     private LocalDate startDate;
     private LocalDate endDate;
     private BigDecimal pricePerNight;

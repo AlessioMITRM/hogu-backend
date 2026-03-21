@@ -158,10 +158,18 @@ public enum ErrorConstants {
             "lA Prenotazione non appartiene all'utente",
             ""
         ),
+    BOOKING_NOT_FOUND(
+            "Prenotazione non trovata",
+            "Booking not found"
+        ),
     UNAUTHORIZED_PAYMENT(
             "Pagamento non autorizzato ",
             "."
         ),
+    BOOKING_NOT_FOUND_OR_NOT_AUTHORIZED(
+            "Prenotazione non trovata o non autorizzata",
+            "Booking not found or not authorized"
+    ),
     SERVICE_TYPE_NOT_VALID(
             "Tipo del servizio non valido",
             ""
@@ -236,6 +244,10 @@ public enum ErrorConstants {
     ),
     IMAGES_REQUIRED(
             "L'immagine è obbligatoria",
+            ""
+    ),
+    CAPACITY_ERROR(
+            "Impossibile ridurre la capacità (Event): ci sono prenotazioni esistenti che superano il nuovo limite",
             ""
     ),
     ;

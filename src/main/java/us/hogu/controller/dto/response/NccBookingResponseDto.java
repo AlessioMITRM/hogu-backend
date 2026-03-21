@@ -18,9 +18,14 @@ public class NccBookingResponseDto {
     private BookingStatus status;
     private BigDecimal totalAmount;
     private OffsetDateTime creationDate;
-    
-    // Campi specifici NCC
+    private String bookingCode;
+
     private OffsetDateTime pickupTime;
     private String pickupLocation;
     private String destination;
+    private Integer passengers;
+    private Double pickupLatitude;
+    private Double pickupLongitude;
+    private Double destinationLatitude;
+    private Double destinationLongitude;
 }

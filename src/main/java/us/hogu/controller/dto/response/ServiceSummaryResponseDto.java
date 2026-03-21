@@ -38,4 +38,7 @@ public class ServiceSummaryResponseDto {
     private Double distanceKm;
     
     private List<String> images;
+
+    @Builder.Default
+    private boolean available = true;
 }

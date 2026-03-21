@@ -14,6 +14,8 @@ public interface BnbRoomJpa extends JpaRepository<BnbRoom, Long> {
 
 	List<BnbRoom> findByBnbServiceId(Long bnbServiceId);
 	
+	Page<BnbRoom> findByBnbServiceId(Long bnbServiceId, Pageable pageable);
+	
     @Query("SELECT DISTINCT r FROM BnbRoom r " +
            "JOIN r.bnbService bs " +
            "LEFT JOIN bs.locales sl " +
@@ -24,7 +26,7 @@ public interface BnbRoomJpa extends JpaRepository<BnbRoom, Long> {
            "   OR LOWER(CAST(sl.address AS string)) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) " +
            "AND " +
            // --- RICERCA GEOGRAFICA ---
-           "(:city IS NULL OR LOWER(CAST(sl.city AS string)) LIKE LOWER(CONCAT('%', :city, '%'))) " +
+           "(:city IS NULL OR LOWER(CAST(sl.province AS string)) LIKE LOWER(CONCAT('%', :city, '%'))) " +
            "AND " +
            // *** QUI C'ERA L'ERRORE: FORZIAMO IL CAST ANCHE SU STATE ***
            "(:state IS NULL OR LOWER(CAST(sl.state AS string)) LIKE LOWER(CONCAT('%', :state, '%'))) " +

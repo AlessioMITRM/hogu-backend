@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import us.hogu.common.constants.CommissionConstants;
 import us.hogu.model.AppliedCommission;
+import us.hogu.model.Booking;
 import us.hogu.model.CommissionSetting;
 import us.hogu.model.enums.ServiceType;
 import us.hogu.repository.jpa.CommissionSettingJpa;
@@ -77,7 +78,7 @@ public class CommissionServiceImpl implements CommissionService {
     @Override
     @Transactional(readOnly = true)
     public AppliedCommission calculateCommission(Object booking, ServiceType serviceType) {
-    	BigDecimal bookingAmount = getBookingAmount(booking, serviceType);
+    	BigDecimal bookingAmount = getBookingAmount(booking);
         CommissionSetting commissionSetting = getCurrentCommissionSetting(serviceType);
         
         BigDecimal commissionRate = commissionSetting != null ? 
@@ -85,7 +86,7 @@ public class CommissionServiceImpl implements CommissionService {
         BigDecimal commissionAmount = calculateCommissionAmount(bookingAmount, serviceType);
         
         return AppliedCommission.builder()
-            .id(getBookingId(booking, serviceType))
+            .id(getBookingId(booking))
             .commissionAmount(commissionAmount)
             .commissionRateApplied(commissionRate)
             .calculatedAt(OffsetDateTime.now())
@@ -189,6 +190,8 @@ public class CommissionServiceImpl implements CommissionService {
                 return new BigDecimal("2.0");  // Min 2€ per club
             case LUGGAGE:
                 return new BigDecimal("0.50");  // Min 0.5€ per bagagli
+            case BNB:
+                return new BigDecimal("2.0");   // Min 2€ per BnB
             default:
                 throw new IllegalArgumentException("Tipo di servizio non gestito: " + serviceType);
         }
@@ -217,34 +220,18 @@ public class CommissionServiceImpl implements CommissionService {
             });
     }
 
-    private BigDecimal getBookingAmount(Object booking, ServiceType serviceType) {
-        switch (serviceType) {
-            case RESTAURANT:
-                return ((us.hogu.model.RestaurantBooking) booking).getTotalAmount();
-            case NCC:
-                return ((us.hogu.model.NccBooking) booking).getTotalAmount();
-            case CLUB:
-                return ((us.hogu.model.ClubBooking) booking).getTotalAmount();
-            case LUGGAGE:
-                return ((us.hogu.model.LuggageBooking) booking).getTotalAmount();
-            default:
-                throw new IllegalArgumentException("Tipo di servizio non gestito: " + serviceType);
+    private BigDecimal getBookingAmount(Object booking) {
+        if (booking instanceof Booking) {
+            return ((Booking) booking).getTotalAmount();
         }
+        throw new IllegalArgumentException("Oggetto booking non valido o tipo sconosciuto");
     }
 
-    private Long getBookingId(Object booking, ServiceType serviceType) {
-        switch (serviceType) {
-            case RESTAURANT:
-                return ((us.hogu.model.RestaurantBooking) booking).getId();
-            case NCC:
-                return ((us.hogu.model.NccBooking) booking).getId();
-            case CLUB:
-                return ((us.hogu.model.ClubBooking) booking).getId();
-            case LUGGAGE:
-                return ((us.hogu.model.LuggageBooking) booking).getId();
-            default:
-                throw new IllegalArgumentException("Tipo di servizio non gestito: " + serviceType);
+    private Long getBookingId(Object booking) {
+        if (booking instanceof Booking) {
+            return ((Booking) booking).getId();
         }
+        throw new IllegalArgumentException("Oggetto booking non valido o tipo sconosciuto");
     }
 
 }

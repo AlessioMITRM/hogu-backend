@@ -10,7 +10,8 @@ public class BnbRoomRequestDto {
     private String name;
     private String description;
     private Integer maxGuests;
-    private BigDecimal basePricePerNight;
+    private BigDecimal priceForNight;
     private Boolean available;
     private List<String> images;
+    private List<BnbRoomPriceRequestDto> priceCalendar;
 }

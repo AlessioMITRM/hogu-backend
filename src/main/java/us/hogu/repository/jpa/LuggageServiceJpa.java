@@ -15,28 +15,28 @@ import us.hogu.model.LuggageServiceEntity;
 import us.hogu.model.User;
 
 public interface LuggageServiceJpa extends JpaRepository<LuggageServiceEntity, Long> {
-	
+
 	Optional<LuggageServiceEntity> findByIdAndUserId(Long serviceId, Long providerId);
-	
+
 	@Query("SELECT l FROM LuggageServiceEntity l WHERE l.publicationStatus = true")
 	Page<LuggageServiceEntity> findActiveSummaries(Pageable pageable);
 
 	@Query("SELECT DISTINCT l FROM LuggageServiceEntity l " +
-		"LEFT JOIN l.locales loc " +
-		"WHERE l.publicationStatus = true " +
-		"AND (:searchText IS NULL OR " +
-		"     LOWER(l.name) LIKE LOWER(CONCAT('%', :searchText, '%')) OR " +
-		"     EXISTS ( " +
-		"         SELECT 1 FROM ServiceLocale sl " +
-		"         WHERE sl MEMBER OF l.locales " +
-		"           AND LOWER(sl.city) LIKE LOWER(CONCAT('%', :searchText, '%')) " +
-		"     )" +
-		")")
+			"LEFT JOIN l.locales loc " +
+			"WHERE l.publicationStatus = true " +
+			"AND (:searchText IS NULL OR " +
+			"     LOWER(l.name) LIKE LOWER(CONCAT('%', :searchText, '%')) OR " +
+			"     EXISTS ( " +
+			"         SELECT 1 FROM ServiceLocale sl " +
+			"         WHERE sl MEMBER OF l.locales " +
+			"           AND LOWER(sl.province) LIKE LOWER(CONCAT('%', :searchText, '%')) " +
+			"     )" +
+			")")
 	Page<LuggageServiceEntity> findActiveBySearch(@Param("searchText") String searchText, Pageable pageable);
 
 	@Query("SELECT l FROM LuggageServiceEntity l WHERE l.user.id = :providerId")
 	Optional<LuggageServiceEntity> findByProviderIdForSingleService(Long providerId);
-	
+
 	@Query("SELECT l FROM LuggageServiceEntity l WHERE l.user.id = :providerId")
 	Page<LuggageServiceEntity> findByProviderId(Long providerId, Pageable pageable);
 
@@ -44,7 +44,7 @@ public interface LuggageServiceJpa extends JpaRepository<LuggageServiceEntity, L
 	Optional<LuggageServiceEntity> findDetailByIdAndProvider(Long id, Long providerId);
 
 	List<LuggageServiceEntity> findAllByUserId(Long providerId);
-	
+
 	@Query("SELECT l FROM LuggageServiceEntity l")
 	List<LuggageServiceEntity> findAllForAdmin();
 
@@ -64,15 +64,17 @@ public interface LuggageServiceJpa extends JpaRepository<LuggageServiceEntity, L
 	@Query("SELECT l FROM LuggageServiceEntity l " +
 			"LEFT JOIN FETCH l.locales loc " +
 			"WHERE l.id = :id AND l.publicationStatus = true " +
-			"AND (:language IS NULL OR LOWER(loc.language) = LOWER(:language))")
+			"AND (:language IS NULL OR LOWER(loc.language) IN (LOWER(:language), 'en'))")
 	Optional<LuggageServiceEntity> findDetailById(@Param("id") Long id, @Param("language") String language);
 
 	@Query("SELECT new us.hogu.controller.dto.response.InfoStatsDto(" +
-            "   CAST(NULL as java.lang.Long), " +
-            "   (SELECT COUNT(b) FROM LuggageBooking b WHERE b.luggageService.user.id = :providerId), " +
-            "   (SELECT COALESCE(SUM(b.totalAmount), 0) FROM LuggageBooking b WHERE b.luggageService.user.id = :providerId) " +
-            ") " +
-            "FROM User u WHERE u.id = :providerId")
+			"   l.id, " +
+			"   l.name, " +
+			"   l.description, " +
+			"   (SELECT COUNT(b) FROM LuggageBooking b WHERE b.luggageService = l), " +
+			"   (SELECT COALESCE(SUM(b.totalAmount), 0) FROM LuggageBooking b WHERE b.luggageService = l) " +
+			") " +
+			"FROM LuggageServiceEntity l WHERE l.user.id = :providerId")
 	InfoStatsDto getInfoStatsByProviderId(@Param("providerId") Long providerId);
 
 	List<LuggageServiceEntity> findByUser(User user);

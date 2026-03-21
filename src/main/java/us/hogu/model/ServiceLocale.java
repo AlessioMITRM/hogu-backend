@@ -27,9 +27,7 @@ public class ServiceLocale {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "Il tipo di servizio è obbligatorio")
     @Enumerated(EnumType.ORDINAL)
-    @Column(nullable = false)
     private ServiceType serviceType;
 
     @Column(nullable = false, length = 5)
@@ -40,6 +38,12 @@ public class ServiceLocale {
     
     @Column(columnDefinition = "TEXT")
     private String state;
+    
+    @Column(columnDefinition = "TEXT")
+    private String province;
+
+    @Column(length = 10)
+    private String postalCode;
     
     @Column(columnDefinition = "TEXT")
     private String city;

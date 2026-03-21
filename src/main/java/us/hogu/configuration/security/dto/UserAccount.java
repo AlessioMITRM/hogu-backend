@@ -19,7 +19,10 @@ import lombok.NoArgsConstructor;
 public class UserAccount {
 	private long accountId;
 	private String email;
-    private List<GrantedAuthority> authorities;    
+	private String name;
+	private String surname;
+    private List<GrantedAuthority> authorities;
+    private List<us.hogu.model.ServiceLocale> serviceLocales;
     
  
     public boolean isCustomer() {

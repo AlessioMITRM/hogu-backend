@@ -17,7 +17,7 @@ import java.time.LocalTime;
 @Schema(description = "Advanced search parameters for restaurants")
 public class RestaurantAdvancedSearchRequestDto {
     @Schema(description = "Location to search restaurants", example = "Milano")
-    private String location;
+    private ServiceLocaleRequestDto locale;
 
     @Schema(description = "Cuisine type", example = "Italian")
     private String cuisine;

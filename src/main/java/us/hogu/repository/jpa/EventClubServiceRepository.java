@@ -2,6 +2,7 @@ package us.hogu.repository.jpa;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,7 +30,7 @@ public interface EventClubServiceRepository extends JpaRepository<EventClubServi
     @Query("SELECT DISTINCT e FROM EventClubServiceEntity e " +
     	       "JOIN e.locales l " +
     	       "WHERE e.isActive = true " +
-    	       "AND (:city IS NULL OR LOWER(l.city) LIKE LOWER(CONCAT('%', :city, '%'))) " +
+    	       "AND (:city IS NULL OR LOWER(l.province) LIKE LOWER(CONCAT('%', :city, '%'))) " +
     	       "AND (:state IS NULL OR LOWER(l.state) LIKE LOWER(CONCAT('%', :state, '%'))) " +
     	       "AND (:eventType IS NULL OR e.theme = :eventType) " +
     	       "AND (:startDate IS NULL OR DATE(e.startTime) = DATE(:startDate))")
@@ -40,4 +41,10 @@ public interface EventClubServiceRepository extends JpaRepository<EventClubServi
 	    @Param("startDate") OffsetDateTime startDate,
 	    Pageable pageable
 	);
+
+    Optional<EventClubServiceEntity> findByIdAndClubService_User_IdAndDeletedFalse(Long id, Long providerId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE EventClubServiceEntity e SET e.occupiedCapacity = e.occupiedCapacity + :amount WHERE e.id = :id")
+    void incrementOccupiedCapacity(@Param("id") Long id, @Param("amount") int amount);
 }

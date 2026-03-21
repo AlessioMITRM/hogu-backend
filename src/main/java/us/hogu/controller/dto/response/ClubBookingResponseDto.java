@@ -17,9 +17,13 @@ public class ClubBookingResponseDto {
     private String eventName;
     private BookingStatus status;
     private BigDecimal totalAmount;
-    private OffsetDateTime creationDate;    
+    private OffsetDateTime creationDate;
+    private String bookingCode;
     private OffsetDateTime reservationTime;
     private Integer numberOfPeople;
     private String specialRequests;
+    private String statusReason;
     private Boolean table;
+    private EventPricingConfigurationResponseDto pricingConfiguration;
+    private java.util.List<String> eventImages;
 }

@@ -22,6 +22,10 @@ public class ServiceLocaleResponseDto {
 
     private String state;
 
+    private String province;
+
+    private String postalCode;
+
     private String city;
 
     private String address;

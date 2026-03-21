@@ -15,12 +15,16 @@ public class RestaurantBookingResponseDto {
     private ServiceType serviceType;
     private Long serviceId;
     private String serviceName;
+    private String bookingFullName;
     private BookingStatus status;
     private BigDecimal totalAmount;
     private OffsetDateTime creationDate;
-    
+    private String bookingCode;
+
     // Campi specifici ristorante
     private OffsetDateTime reservationTime;
     private Integer numberOfPeople;
     private String specialRequests;
+    private String statusReason;
+    private java.util.List<String> images;
 }

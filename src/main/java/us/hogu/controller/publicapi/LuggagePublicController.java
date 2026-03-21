@@ -32,6 +32,22 @@ public class LuggagePublicController {
     private final LuggageService luggageService;
 	
     
+    @PostMapping("/search")
+    @Operation(summary = "Ricerca servizi bagagli", description = "Ricerca servizi bagagli con filtri")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Ricerca completata con successo")
+    })
+    public ResponseEntity<Page<LuggageSearchResultResponseDto>> searchLuggageServices(
+            @RequestBody LuggageSearchRequestDto request) {
+        
+        int page = request.getPage() != null ? request.getPage() : 0;
+        int size = request.getSize() != null ? request.getSize() : 10;
+        Pageable pageable = PageRequest.of(page, size);
+        
+        Page<LuggageSearchResultResponseDto> response = luggageService.searchNative(request, pageable);
+        return ResponseEntity.ok(response);
+    }
+    
     @GetMapping
     @Operation(summary = "Lista servizi bagagli attivi", description = "Restituisce la lista di tutti i servizi bagagli pubblici e attivi (paginata)")
     @ApiResponses(value = {
@@ -52,18 +68,6 @@ public class LuggagePublicController {
             @Parameter(description = "ID del servizio bagagli") @PathVariable Long id) 
     {
         return ResponseEntity.ok(luggageService.getLuggageServiceDetail(id));
-    }
-    
-    @PostMapping("/search")
-    public ResponseEntity<Page<LuggageSearchResultResponseDto>> searchLuggage(@RequestBody LuggageSearchRequestDto request) 
-    {
-        // Default paginazione se null
-        int page = request.getPage() != null ? request.getPage() : 0;
-        int size = request.getSize() != null ? request.getSize() : 10;
-        
-        Pageable pageable = PageRequest.of(page, size);
-        
-        return ResponseEntity.ok(luggageService.searchNative(request, pageable));
     }
     
     

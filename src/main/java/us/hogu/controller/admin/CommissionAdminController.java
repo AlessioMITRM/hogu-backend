@@ -1,4 +1,4 @@
-package us.hogu.controller;
+package us.hogu.controller.admin;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,7 +21,7 @@ import us.hogu.service.intefaces.CommissionService;
 @RequestMapping("/admin/commissioni")
 @RequiredArgsConstructor
 @Tag(name = "Commissioni", description = "Gestione delle commissioni per i servizi")
-public class CommissionController {
+public class CommissionAdminController {
 
     private final CommissionService commissionService;
 

@@ -8,7 +8,8 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class EventSearchRequestDto {
-    private String location;
+    private ServiceLocaleRequestDto locale; // Changed to Object
+    // private ServiceLocaleRequestDto locale; // Removed duplicate
     private String eventType;
     private Boolean table;
     private String date; // Formato stringa (es. ISO-8601)

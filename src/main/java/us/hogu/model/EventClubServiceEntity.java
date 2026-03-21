@@ -32,6 +32,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import us.hogu.model.converter.StringListConverter;
 
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -47,6 +50,8 @@ public class EventClubServiceEntity {
     @NotNull(message = "Il club service è obbligatorio")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "club_service_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private ClubServiceEntity clubService;
 
     @NotBlank(message = "Il nome dell'evento è obbligatorio")
@@ -55,24 +60,26 @@ public class EventClubServiceEntity {
     private String name;
 
     @NotBlank(message = "La descrizione dell'evento è obbligatoria")
-    @Size(min = 10, max = 500, message = "La descrizione deve essere tra 10 e 500 caratteri")
-    @Column(nullable = false, length = 500)
+    @Size(min = 10, max = 1000, message = "La descrizione deve essere tra 10 e 1000 caratteri")
+    @Column(nullable = false, length = 1000)
     private String description;
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "event_id", referencedColumnName = "id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<ServiceLocale> locales = new ArrayList<>();
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "eventClubService")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<EventPricingConfiguration> pricingConfigurations = new ArrayList<>();
 
     @NotNull(message = "L'orario di inizio è obbligatorio")
-    @Future(message = "L'orario di inizio deve essere nel futuro")
     @Column(nullable = false)
     private OffsetDateTime startTime;
 
     @NotNull(message = "L'orario di fine è obbligatorio")
-    @Future(message = "L'orario di fine deve essere nel futuro")
     @Column(nullable = false)
     private OffsetDateTime endTime;
 
@@ -113,6 +120,10 @@ public class EventClubServiceEntity {
     @NotNull(message = "Lo stato attivo è obbligatorio")
     @Column(nullable = false)
     private Boolean isActive;
+
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private Boolean deleted = false;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

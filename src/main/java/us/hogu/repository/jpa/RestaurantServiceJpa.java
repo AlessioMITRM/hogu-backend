@@ -16,61 +16,64 @@ import us.hogu.repository.projection.RestaurantManagementProjection;
 import us.hogu.repository.projection.RestaurantSummaryProjection;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface RestaurantServiceJpa extends JpaRepository<RestaurantServiceEntity, Long>, JpaSpecificationExecutor<RestaurantServiceEntity> {
-   
-    boolean existsByIdAndUserId(Long id, Long userId);
+public interface RestaurantServiceJpa
+              extends JpaRepository<RestaurantServiceEntity, Long>, JpaSpecificationExecutor<RestaurantServiceEntity> {
 
-    @Query("SELECT r FROM RestaurantServiceEntity r WHERE r.user.id = :providerId")
-    Optional<RestaurantServiceEntity> findByProviderIdForSingleService(Long providerId);
+       boolean existsByIdAndUserId(Long id, Long userId);
 
-    // Frontend - lista pubblica
-    @Query(
-    	    value = "SELECT DISTINCT r FROM RestaurantServiceEntity r JOIN FETCH r.locales loc WHERE r.publicationStatus = true AND LOWER(loc.language) = LOWER(:language)",
-    	    countQuery = "SELECT COUNT(DISTINCT r) FROM RestaurantServiceEntity r JOIN r.locales loc WHERE r.publicationStatus = true AND LOWER(loc.language) = LOWER(:language)"
-    	)
-    Page<RestaurantServiceEntity> findActiveByLanguage(@Param("language") String language, Pageable pageable);
+       @Query("SELECT r FROM RestaurantServiceEntity r WHERE r.user.id = :providerId")
+       Optional<RestaurantServiceEntity> findByProviderIdForSingleService(Long providerId);
 
-    // Fornitore - gestione servizi
-    @Query("SELECT r FROM RestaurantServiceEntity r WHERE r.user.id = :providerId")
-    Page<RestaurantServiceEntity> findByProviderId(Long providerId, Pageable pageable);
-    
-    // Admin - tutti i servizi
-    @Query("SELECT r FROM RestaurantServiceEntity r")
-    List<RestaurantServiceEntity> findAllForAdmin();
-    
-    // DETTAGLIO COMPLETO per pagina servizio
-    @Query("SELECT r FROM RestaurantServiceEntity r WHERE r.id = :id AND r.publicationStatus = true")
-    Optional<RestaurantServiceEntity> findDetailById(Long id);
-    
-    // DETTAGLIO per fornitore (include anche non pubblicati)
-    @Query("SELECT r FROM RestaurantServiceEntity r " +
-           "LEFT JOIN FETCH r.locales loc " +
-           "WHERE r.id = :id AND r.user.id = :providerId " +
-           "AND (:language IS NULL OR LOWER(loc.language) = LOWER(:language))")
-    Optional<RestaurantServiceEntity> findDetailByIdAndProvider(@Param("id") Long id, @Param("providerId") Long providerId, @Param("language") String language);
-    
-    // Frontend - lista pubblica
-    @Query("SELECT DISTINCT r FROM RestaurantServiceEntity r " +
-    	       "JOIN r.locales loc " +
-    	       "WHERE r.publicationStatus = true " +
-    	       "AND (COALESCE(:searchText, '') = '' " +
-    	       "     OR LOWER(r.name) LIKE LOWER(CONCAT('%', :searchText, '%')) " +
-    	       "     OR LOWER(loc.city) LIKE LOWER(CONCAT('%', :searchText, '%')) " +
-    	       "     OR LOWER(loc.state) LIKE LOWER(CONCAT('%', :searchText, '%')) " +
-    	       "     OR LOWER(loc.country) LIKE LOWER(CONCAT('%', :searchText, '%'))) " +
-    	       "AND (COALESCE(:language, '') = '' " +
-    	       "     OR LOWER(loc.language) = LOWER(:language))")
-    List<RestaurantServiceEntity> findActiveBySearchAndLanguage(
-    	        @Param("searchText") String searchText,
-    	        @Param("language") String language);
+       // Frontend - lista pubblica
+       @Query(value = "SELECT DISTINCT r FROM RestaurantServiceEntity r JOIN FETCH r.locales loc WHERE r.publicationStatus = true AND LOWER(loc.language) IN (LOWER(:language), 'en')", countQuery = "SELECT COUNT(DISTINCT r) FROM RestaurantServiceEntity r JOIN r.locales loc WHERE r.publicationStatus = true AND LOWER(loc.language) IN (LOWER(:language), 'en')")
+       Page<RestaurantServiceEntity> findActiveByLanguage(@Param("language") String language, Pageable pageable);
 
-    List<RestaurantServiceEntity> findByUser(User user);
-    
-	@Query("SELECT new us.hogu.controller.dto.response.InfoStatsDto(" +
-            "   CAST(NULL as java.lang.Long), " +
-            "   (SELECT COUNT(b) FROM RestaurantBooking b WHERE b.restaurantService.user.id = :providerId), " +
-            "   (SELECT COALESCE(SUM(b.totalAmount), 0) FROM RestaurantBooking b WHERE b.restaurantService.user.id = :providerId) " +
-            ") " +
-            "FROM User u WHERE u.id = :providerId")
-	us.hogu.controller.dto.response.InfoStatsDto getInfoStatsByProviderId(@Param("providerId") Long providerId);
+       // Fornitore - gestione servizi
+       @Query("SELECT r FROM RestaurantServiceEntity r WHERE r.user.id = :providerId")
+       Page<RestaurantServiceEntity> findByProviderId(Long providerId, Pageable pageable);
+
+       // Admin - tutti i servizi
+       @Query("SELECT r FROM RestaurantServiceEntity r")
+       List<RestaurantServiceEntity> findAllForAdmin();
+
+       // DETTAGLIO COMPLETO per pagina servizio
+       @Query("SELECT r FROM RestaurantServiceEntity r " +
+                     "LEFT JOIN FETCH r.locales loc " +
+                     "WHERE r.id = :id AND r.publicationStatus = true " +
+                     "AND (:language IS NULL OR LOWER(loc.language) IN (LOWER(:language), 'en'))")
+       Optional<RestaurantServiceEntity> findDetailById(@Param("id") Long id, @Param("language") String language);
+
+       // DETTAGLIO per fornitore (include anche non pubblicati)
+       @Query("SELECT r FROM RestaurantServiceEntity r " +
+                     "WHERE r.id = :id AND r.user.id = :providerId")
+       Optional<RestaurantServiceEntity> findDetailByIdAndProvider(@Param("id") Long id,
+                     @Param("providerId") Long providerId);
+
+       // Frontend - lista pubblica
+       @Query("SELECT DISTINCT r FROM RestaurantServiceEntity r " +
+                     "JOIN r.locales loc " +
+                     "WHERE r.publicationStatus = true " +
+                     "AND (COALESCE(:searchText, '') = '' " +
+                     "     OR LOWER(r.name) LIKE LOWER(CONCAT('%', :searchText, '%')) " +
+                     "     OR LOWER(loc.province) LIKE LOWER(CONCAT('%', :searchText, '%')) " +
+                     "     OR LOWER(loc.state) LIKE LOWER(CONCAT('%', :searchText, '%')) " +
+                     "     OR LOWER(loc.country) LIKE LOWER(CONCAT('%', :searchText, '%'))) " +
+                     "AND (COALESCE(:language, '') = '' " +
+                     "     OR LOWER(loc.language) IN (LOWER(:language), 'en'))")
+       List<RestaurantServiceEntity> findActiveBySearchAndLanguage(
+                     @Param("searchText") String searchText,
+                     @Param("language") String language);
+
+       List<RestaurantServiceEntity> findByUser(User user);
+
+       @Query("SELECT new us.hogu.controller.dto.response.InfoStatsDto(" +
+                     "   r.id, " +
+                     "   r.name, " +
+                     "   r.description, " +
+                     "   (SELECT COUNT(b) FROM RestaurantBooking b WHERE b.restaurantService = r), " +
+                     "   (SELECT COALESCE(SUM(b.totalAmount), 0) FROM RestaurantBooking b WHERE b.restaurantService = r AND (b.status = us.hogu.model.enums.BookingStatus.COMPLETED OR b.status = us.hogu.model.enums.BookingStatus.CANCELLED_BY_PROVIDER)) "
+                     +
+                     ") " +
+                     "FROM RestaurantServiceEntity r WHERE r.user.id = :providerId")
+       us.hogu.controller.dto.response.InfoStatsDto getInfoStatsByProviderId(@Param("providerId") Long providerId);
 }

@@ -22,6 +22,7 @@ import us.hogu.controller.dto.response.LuggageServiceProviderResponseDto;
 import us.hogu.controller.dto.response.LuggageServiceResponseDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
 import us.hogu.controller.dto.response.ServiceSummaryResponseDto;
+import us.hogu.controller.dto.response.LuggageBookingValidationResponseDto;
 import us.hogu.repository.projection.LuggageManagementProjection;
 
 public interface LuggageService {
@@ -39,6 +40,8 @@ public interface LuggageService {
 	Page<ServiceSummaryResponseDto> getAllLuggageServicesByProvider(Long providerId, Pageable pageable);
 
 	Page<LuggageBookingResponseDto> getLuggageBookings(Long serviceId, Long providerId, Pageable pageable);
+	
+	Page<LuggageBookingResponseDto> getLuggageBookingsHistory(Long serviceId, Long providerId, Pageable pageable);
 
 	Page<LuggageBookingResponseDto> getUserLuggageBookings(Long userId, Pageable pageable);
 
@@ -59,5 +62,7 @@ public interface LuggageService {
 	List<LuggageServiceProviderResponseDto> getLuggageServicesByProviderId(Long providerId);
 
 	InfoStatsDto getInfo(Long providerId);
+
+	LuggageBookingValidationResponseDto validateLuggageBookingByCode(Long providerId, String code);
 
 }

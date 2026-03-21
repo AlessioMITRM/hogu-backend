@@ -17,8 +17,9 @@ public class BnbSearchRequestDto {
     private int size = 10;
 
     private String searchTerm;
-    private String location;
 
+    private ServiceLocaleRequestDto locale; 
+    
     // --- AGGIUNGI @DateTimeFormat QUI ---
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) 
     private LocalDate checkIn;

@@ -30,7 +30,7 @@ import us.hogu.service.intefaces.ClubService;
 import us.hogu.service.intefaces.LuggageService;
 
 @RestController
-@RequestMapping("/api/services/luggage/customer")
+@RequestMapping("/api/customer/services/luggage")
 @RequiredArgsConstructor
 @Tag(name = "Luggage Services Customer", description = "APIs per gestione Luggage del Customer")
 @PreAuthorize("hasAnyRole(T(us.hogu.model.enums.UserRole).CUSTOMER.name())")

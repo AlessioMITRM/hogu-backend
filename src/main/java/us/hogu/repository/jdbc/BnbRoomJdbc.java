@@ -13,6 +13,7 @@ import us.hogu.controller.dto.response.BnbSearchResponseDto.BnbSearchResultDto;
 import us.hogu.exception.ResourceNotFoundException;
 import us.hogu.controller.dto.response.ServiceLocaleResponseDto;
 import us.hogu.model.BnbRoom;
+import us.hogu.model.enums.BookingStatus;
 import us.hogu.model.enums.ServiceType;
 import us.hogu.repository.jpa.BnbRoomJpa;
 
@@ -42,24 +43,39 @@ public class BnbRoomJdbc {
             Pageable pageable,
             String language) {
 
-        String cityParam = null;
-        String stateParam = null;
-        if (request.getLocation() != null && !request.getLocation().trim().isEmpty()) {
-            String[] parts = request.getLocation().split(",");
-            cityParam = parts[0].trim();
-            if (parts.length > 1) stateParam = parts[1].trim();
+        String countryParam = null;
+        String provinceParam = null;
+        
+        if (request.getLocale() != null) {
+            if (request.getLocale().getProvince() != null && !request.getLocale().getProvince().trim().isEmpty()) {
+                provinceParam = request.getLocale().getProvince().trim();
+            }
+            if (request.getLocale().getCountry() != null && !request.getLocale().getCountry().trim().isEmpty()) {
+                countryParam = request.getLocale().getCountry().trim();
+            }
         }
+        
+        // Remove old locale check as location now holds the object
+        // if (request.getLocale() != null ...
 
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("searchTerm", request.getSearchTerm() != null ? "%" + request.getSearchTerm() + "%" : null);
-        params.addValue("city", cityParam != null ? "%" + cityParam + "%" : null);
-        params.addValue("state", stateParam != null ? "%" + stateParam + "%" : null);
+        params.addValue("country", countryParam != null ? "%" + countryParam + "%" : null);
+        params.addValue("province", provinceParam != null ? "%" + provinceParam + "%" : null);
         params.addValue("checkIn", request.getCheckIn());
         params.addValue("checkOut", request.getCheckOut());
         params.addValue("totalGuests", request.getAdults() + request.getChildren());
         params.addValue("limit", pageable.getPageSize());
         params.addValue("offset", pageable.getOffset());
         params.addValue("language", language);
+        params.addValue(
+                "inactiveStatuses",
+                List.of(
+                        BookingStatus.CANCELLED_BY_PROVIDER.ordinal(),
+                        BookingStatus.CANCELLED_BY_ADMIN.ordinal(),
+                        BookingStatus.REFUNDED_BY_ADMIN.ordinal()
+                )
+        );
 
         StringBuilder sql = new StringBuilder();
         sql.append(" FROM hogu.bnb_room r ");
@@ -72,21 +88,23 @@ public class BnbRoomJdbc {
             sql.append(" AND (LOWER(CAST(r.name AS TEXT)) LIKE LOWER(:searchTerm) ")
                .append(" OR LOWER(CAST(sl.address AS TEXT)) LIKE LOWER(:searchTerm)) ");
         }
-        if (cityParam != null) {
-            sql.append(" AND LOWER(CAST(sl.city AS TEXT)) LIKE LOWER(:city) ");
+        
+        if (countryParam != null) {
+            sql.append(" AND LOWER(CAST(sl.country AS TEXT)) LIKE LOWER(:country) ");
         }
-        if (stateParam != null) {
-            sql.append(" AND LOWER(CAST(sl.state AS TEXT)) LIKE LOWER(:state) ");
+        if (provinceParam != null) {
+            sql.append(" AND LOWER(CAST(sl.province AS TEXT)) LIKE LOWER(:province) ");
         }
 
         // Controllo disponibilità
         if (request.getCheckIn() != null && request.getCheckOut() != null) {
             sql.append(" AND NOT EXISTS ( ");
-            sql.append("   SELECT 1 FROM hogu.bnb_room_availability a ");
-            sql.append("   WHERE a.room_id = r.id ");
-            sql.append("     AND a.date >= :checkIn ");
-            sql.append("     AND a.date < :checkOut ");
-            sql.append("     AND a.occupied_capacity >= a.capacity ");
+            sql.append("   SELECT 1 FROM hogu.bnb_bookings bb ");
+            sql.append("   JOIN hogu.booking b ON bb.id = b.id ");
+            sql.append("   WHERE bb.room_id = r.id ");
+            sql.append("     AND bb.check_in_date < :checkOut ");
+            sql.append("     AND bb.check_out_date > :checkIn ");
+            sql.append("     AND b.status NOT IN (:inactiveStatuses) ");
             sql.append(" ) ");
         }
 
@@ -95,7 +113,7 @@ public class BnbRoomJdbc {
 
         String selectSql =
                 "SELECT DISTINCT r.id, r.name, r.description, r.base_price_per_night, r.max_guests, " +
-                "       bs.images, sl.country, sl.state, sl.city, sl.address " +
+                "       bs.id AS bnb_service_id, r.images, sl.country, sl.state, sl.city, sl.address " +
                 sql +
                 " ORDER BY r.base_price_per_night ASC " +
                 " LIMIT :limit OFFSET :offset";
@@ -131,26 +149,28 @@ public class BnbRoomJdbc {
         boolean available = true;
         if (checkIn != null && checkOut != null) {
             String sqlAvailability =
-                    "SELECT occupied_capacity FROM bnb_room_availability " +
-                    "WHERE room_id = :roomId AND date >= :checkIn AND date < :checkOut";
+                    "SELECT COUNT(1) FROM hogu.bnb_bookings bb " +
+                    "JOIN hogu.booking b ON bb.id = b.id " +
+                    "WHERE bb.room_id = :roomId " +
+                    "  AND bb.check_in_date < :checkOut " +
+                    "  AND bb.check_out_date > :checkIn " +
+                    "  AND b.status NOT IN (:inactiveStatuses)";
 
             MapSqlParameterSource availabilityParams = new MapSqlParameterSource()
                     .addValue("roomId", roomId)
                     .addValue("checkIn", checkIn)
-                    .addValue("checkOut", checkOut);
+                    .addValue("checkOut", checkOut)
+                    .addValue(
+                            "inactiveStatuses",
+                            List.of(
+                                    BookingStatus.CANCELLED_BY_PROVIDER.ordinal(),
+                                    BookingStatus.CANCELLED_BY_ADMIN.ordinal(),
+                                    BookingStatus.REFUNDED_BY_ADMIN.ordinal()
+                            )
+                    );
 
-            List<Integer> bookedCounts = jdbcTemplate.queryForList(
-                    sqlAvailability,
-                    availabilityParams,
-                    Integer.class
-            );
-
-            for (Integer count : bookedCounts) {
-                if (count >= entity.getMaxGuests()) {
-                    available = false;
-                    break;
-                }
-            }
+            Integer activeBookings = jdbcTemplate.queryForObject(sqlAvailability, availabilityParams, Integer.class);
+            available = activeBookings == null || activeBookings == 0;
         }
 
         List<String> images = entity.getImages() != null ? entity.getImages() : List.of();
@@ -165,7 +185,7 @@ public class BnbRoomJdbc {
                 .maxGuests(entity.getMaxGuests())
                 .totalPrice(totalPrice)
                 .priceForNight(pricePerNight)
-                .available(available)
+                .publicationStatus(available)
                 .images(images)
                 .serviceLocale(locales)
                 .build();
@@ -175,6 +195,7 @@ public class BnbRoomJdbc {
             throws SQLException {
 
         Long roomId = rs.getLong("id");
+        Long serviceId = rs.getLong("bnb_service_id");
         BigDecimal basePrice = rs.getBigDecimal("base_price_per_night");
 
         BigDecimal totalPrice = calculateTotalPrice(roomId, basePrice, checkIn, checkOut);
@@ -189,6 +210,7 @@ public class BnbRoomJdbc {
 
         return BnbSearchResultDto.builder()
                 .id(String.valueOf(roomId))
+                .serviceId(serviceId)
                 .name(rs.getString("name"))
                 .description(rs.getString("description"))
                 .price(totalPrice)
@@ -272,7 +294,7 @@ public class BnbRoomJdbc {
                 "JOIN hogu.bnb_services bs ON sl.bnb_service_id = bs.id " +
                 "JOIN hogu.bnb_room r ON r.bnb_service_id = bs.id " +
                 "WHERE r.id = :roomId " +
-                "  AND sl.language = :language";
+                "  AND sl.language IN (:language, 'en')";
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("roomId", roomId)
@@ -294,16 +316,39 @@ public class BnbRoomJdbc {
     }
 
     private List<String> parseImages(String raw) {
-        if (raw == null || raw.trim().isEmpty()) {
+        if (raw == null) {
             return List.of();
         }
-        raw = raw.replace("{", "").replace("}", "").trim();
+
+        raw = raw.trim();
         if (raw.isEmpty()) {
             return List.of();
         }
+
+        // Rimuove eventuali parentesi graffe usate in altre rappresentazioni
+        raw = raw.replace("{", "").replace("}", "").trim();
+
+        if (raw.isEmpty()) {
+            return List.of();
+        }
+
         return Arrays.stream(raw.split(","))
                 .map(String::trim)
-                .filter(s -> !s.isEmpty())
+                .map(s -> {
+                    // Rimuove eventuale [ iniziale e ] finale dal primo/ultimo elemento
+                    if (s.startsWith("[")) {
+                        s = s.substring(1).trim();
+                    }
+                    if (s.endsWith("]")) {
+                        s = s.substring(0, s.length() - 1).trim();
+                    }
+                    // Rimuove doppi apici intorno al valore
+                    if (s.startsWith("\"") && s.endsWith("\"") && s.length() >= 2) {
+                        s = s.substring(1, s.length() - 1);
+                    }
+                    return s;
+                })
+                .filter(s -> s != null && !s.isEmpty())
                 .collect(Collectors.toList());
     }
 }

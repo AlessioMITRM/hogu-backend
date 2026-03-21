@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import lombok.RequiredArgsConstructor;
 import us.hogu.common.constants.ErrorConstants;
 import us.hogu.common.util.ImageUtils;
+import us.hogu.controller.dto.request.LuggageBookingEvent;
 import us.hogu.controller.dto.request.LuggageBookingRequestDto;
 import us.hogu.controller.dto.request.LuggageSearchRequestDto;
 import us.hogu.controller.dto.request.LuggageServiceRequestDto;
@@ -36,6 +38,7 @@ import us.hogu.controller.dto.response.LuggageServiceAdminResponseDto;
 import us.hogu.controller.dto.response.LuggageServiceDetailResponseDto;
 import us.hogu.controller.dto.response.LuggageServiceProviderResponseDto;
 import us.hogu.controller.dto.response.LuggageServiceResponseDto;
+import us.hogu.controller.dto.response.LuggageBookingValidationResponseDto;
 import us.hogu.controller.dto.response.LuggageSizePriceResponseDto;
 import us.hogu.controller.dto.response.OpeningHourResponseDto;
 import us.hogu.controller.dto.response.ServiceLocaleResponseDto;
@@ -47,6 +50,7 @@ import us.hogu.model.LuggageSizePrice;
 import us.hogu.model.OpeningHour;
 import us.hogu.model.ServiceLocale;
 import us.hogu.model.User;
+import us.hogu.model.enums.BookingStatus;
 import us.hogu.model.enums.ServiceType;
 import us.hogu.model.enums.UserRole;
 import us.hogu.repository.jdbc.LuggageServiceJdbc;
@@ -55,6 +59,8 @@ import us.hogu.repository.jpa.LuggageServiceJpa;
 import us.hogu.repository.jpa.UserJpa;
 import us.hogu.service.intefaces.FileService;
 import us.hogu.service.intefaces.LuggageService;
+import us.hogu.service.mq.BookingProducer;
+import us.hogu.service.redis.RedisAvailabilityService;
 
 @RequiredArgsConstructor
 @Service
@@ -65,6 +71,8 @@ public class LuggageServiceImpl implements LuggageService {
     private final UserJpa userJpa;
     private final LuggageServiceJdbc luggageServiceJdbc;
     private final FileService fileService;
+    private final RedisAvailabilityService redisService;
+    private final BookingProducer bookingProducer;
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
     private static final int MONEY_SCALE = 2;
@@ -116,13 +124,15 @@ public class LuggageServiceImpl implements LuggageService {
                         ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.name(),
                         ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.getMessage()));
 
-        ServiceLocale loc = entity.getLocales().get(0);
-        ServiceLocaleResponseDto locDto = ServiceLocaleResponseDto.builder()
-                .address(loc.getAddress())
-                .city(loc.getCity())
-                .country(loc.getCountry())
-                .language(loc.getLanguage())
-                .build();
+        List<ServiceLocaleResponseDto> localeDtos = entity.getLocales().stream()
+                .map(loc -> ServiceLocaleResponseDto.builder()
+                        .address(loc.getAddress())
+                        .city(loc.getCity())
+                        .country(loc.getCountry())
+                        .state(loc.getState())
+                        .language(loc.getLanguage())
+                        .build())
+                .collect(Collectors.toList());
 
         List<LuggageSizePriceResponseDto> sizePrices = new ArrayList<>();
         for (LuggageSizePrice sp : entity.getSizePrices()) {
@@ -149,7 +159,7 @@ public class LuggageServiceImpl implements LuggageService {
                 .name(entity.getName())
                 .images(entity.getImages())
                 .available(true)
-                .serviceLocale(List.of(locDto))
+                .serviceLocale(localeDtos)
                 .basePrice(entity.getBasePrice())
                 .sizePrices(sizePrices)
                 .openingHours(openingHours)
@@ -162,7 +172,12 @@ public class LuggageServiceImpl implements LuggageService {
         Page<LuggageServiceEntity> entities = luggageServiceJpa.findActiveBySearch(searchTerm, pageable);
         List<ServiceSummaryResponseDto> dtoList = new ArrayList<>();
         for (LuggageServiceEntity entity : entities.getContent()) {
-            dtoList.add(buildSummaryDto(entity));
+            if (!redisService.checkLuggageAvailability(entity.getId(), entity.getCapacity())) {
+                continue;
+            }
+            ServiceSummaryResponseDto dto = buildSummaryDto(entity);
+            dto.setAvailable(true);
+            dtoList.add(dto);
         }
         return new PageImpl<>(dtoList, pageable, entities.getTotalElements());
     }
@@ -197,10 +212,86 @@ public class LuggageServiceImpl implements LuggageService {
                         ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.name(),
                         ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.getMessage()));
 
-        checkLuggageAvailability(luggageService, requestDto.getReservationTime(), requestDto.getNumberOfPeople());
+        // 1. Calculate Bags
+        int bagsSmall = requestDto.getBagsSmall() != null ? requestDto.getBagsSmall() : 0;
+        int bagsMedium = requestDto.getBagsMedium() != null ? requestDto.getBagsMedium() : 0;
+        int bagsLarge = requestDto.getBagsLarge() != null ? requestDto.getBagsLarge() : 0;
+        int totalBags = bagsSmall + bagsMedium + bagsLarge;
 
+        if (totalBags <= 0) {
+             throw new ValidationException(ErrorConstants.GENERIC_ERROR.name(), "Numero di bagagli non valido");
+        }
+
+        int maxCapacity = luggageService.getCapacity() != null ? luggageService.getCapacity() : 0;
+
+        // 2. Redis Reservation (High Concurrency)
+        boolean reserved = redisService.reserveLuggage(
+                luggageService.getId(), 
+                requestDto.getDropOffTime(), 
+                requestDto.getPickUpTime(), 
+                totalBags, 
+                maxCapacity);
+
+        if (!reserved) {
+            throw new ValidationException(
+                    ErrorConstants.INSUFFICIENT_AVAILABLE_SEATS.name(),
+                    ErrorConstants.INSUFFICIENT_AVAILABLE_SEATS.getMessage());
+        }
+
+        // 3. Create Booking (Sync)
         LuggageBooking booking = buildBookingEntity(requestDto, user, luggageService);
-        LuggageBooking savedBooking = luggageBookingJpa.save(booking);
+        
+        // Ricalcolo Prezzo (Backend Authoritative)
+        BigDecimal calculatedTotal = calculateTotalAmount(
+                requestDto.getDropOffTime(),
+                requestDto.getPickUpTime(),
+                bagsSmall,
+                bagsMedium,
+                bagsLarge,
+                luggageService.getSizePrices()
+        );
+        booking.setTotalAmount(calculatedTotal);
+
+        booking.setStatus(BookingStatus.PENDING);
+        booking.setBillingFirstName(requestDto.getBillingFirstName());
+        booking.setBillingLastName(requestDto.getBillingLastName());
+        booking.setBillingTaxCode(requestDto.getFiscalCode());
+        booking.setBillingVatNumber(requestDto.getTaxId());
+        booking.setBillingAddress(requestDto.getBillingAddress());
+        booking.setBillingEmail(requestDto.getBillingEmail());
+        
+        LuggageBooking savedBooking;
+        try {
+            savedBooking = luggageBookingJpa.save(booking);
+        } catch (Exception e) {
+            redisService.rollbackLuggage(
+                luggageService.getId(), 
+                requestDto.getDropOffTime(), 
+                requestDto.getPickUpTime(), 
+                totalBags);
+            throw e;
+        }
+
+        // 4. Async Event for DB Persistence/Processing
+        LuggageBookingEvent event = LuggageBookingEvent.builder()
+                .userId(userId)
+                .luggageServiceId(luggageService.getId())
+                .bookingId(savedBooking.getId())
+                .dropOffTime(requestDto.getDropOffTime())
+                .pickUpTime(requestDto.getPickUpTime())
+                .bagsSmall(bagsSmall)
+                .bagsMedium(bagsMedium)
+                .bagsLarge(bagsLarge)
+                .totalAmount(savedBooking.getTotalAmount())
+                .billingFirstName(user.getName())
+                .billingLastName(user.getSurname())
+                .build();
+        
+        try {
+            bookingProducer.sendLuggageBookingRequest(event);
+        } catch (Exception e) {
+             // log error, booking is already saved in PENDING
+        }
 
         return buildBookingResponseDto(savedBooking);
     }
@@ -255,7 +346,14 @@ public class LuggageServiceImpl implements LuggageService {
                     "Non sei autorizzato a modificare questo deposito.");
         }
 
+        Integer oldCapacity = entity.getCapacity();
+
         populateEntityFromDto(entity, requestDto);
+
+        Integer newCapacity = entity.getCapacity();
+        if (oldCapacity != null && newCapacity != null) {
+            redisService.updateLuggageCapacity(serviceId, oldCapacity, newCapacity);
+        }
 
         BigDecimal calculatedBasePrice = calculateBasePrice(requestDto.getSizePrices());
 
@@ -324,6 +422,34 @@ public class LuggageServiceImpl implements LuggageService {
 
         return new PageImpl<>(content, pageable, bookings.getTotalElements());
     }
+	
+	@Override
+	@Transactional(readOnly = true)
+	public Page<LuggageBookingResponseDto> getLuggageBookingsHistory(Long serviceId, Long providerId, Pageable pageable) {
+		LuggageServiceEntity luggageService = luggageServiceJpa.findById(serviceId)
+				.orElseThrow(() -> new ValidationException(
+						ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.name(),
+						ErrorConstants.SERVICE_LUGGAGE_NOT_FOUND.getMessage()));
+
+		User provider = userJpa.findById(providerId)
+				.orElseThrow(() -> new ValidationException(
+						ErrorConstants.USER_NOT_FOUND.name(),
+						ErrorConstants.USER_NOT_FOUND.getMessage()));
+
+		if (provider.getRole() != UserRole.PROVIDER) {
+			throw new ValidationException(
+					ErrorConstants.USER_ROLE_INVALID.name(),
+					ErrorConstants.USER_ROLE_INVALID.getMessage());
+		}
+
+		OffsetDateTime now = OffsetDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+		Page<LuggageBooking> bookings = luggageBookingJpa.findPastBookings(serviceId, now, pageable);
+		List<LuggageBookingResponseDto> content = bookings.getContent()
+				.stream()
+				.map(this::buildBookingResponseDto)
+				.collect(Collectors.toList());
+		return new PageImpl<>(content, pageable, bookings.getTotalElements());
+	}
 
     // ADMIN METHODS
     @Override
@@ -337,6 +463,7 @@ public class LuggageServiceImpl implements LuggageService {
 
     @Override
     public Page<LuggageSearchResultResponseDto> searchNative(LuggageSearchRequestDto request, Pageable pageable) {
+        
         return luggageServiceJdbc.searchNative(request, pageable);
     }
 
@@ -373,8 +500,10 @@ public class LuggageServiceImpl implements LuggageService {
             locale.setLanguage(locDto.getLanguage() != null ? locDto.getLanguage() : "it");
             locale.setCountry(locDto.getCountry() != null ? locDto.getCountry() : "Italia");
             locale.setState(locDto.getState());
+            locale.setProvince(locDto.getProvince());
             locale.setCity(locDto.getCity());
             locale.setAddress(locDto.getAddress());
+            locale.setPostalCode(locDto.getPostalCode());
             entity.getLocales().add(locale);
         }
 
@@ -429,13 +558,19 @@ public class LuggageServiceImpl implements LuggageService {
     }
 
     private LuggageServiceDetailResponseDto buildDetailResponseDto(LuggageServiceEntity entity, User provider) {
-        ServiceLocale loc = entity.getLocales().get(0);
-        ServiceLocaleResponseDto locDto = ServiceLocaleResponseDto.builder()
-                .address(loc.getAddress())
-                .city(loc.getCity())
-                .country(loc.getCountry())
-                .language(loc.getLanguage())
-                .build();
+        ServiceLocaleResponseDto locDto = null;
+        if (entity.getLocales() != null && !entity.getLocales().isEmpty()) {
+            ServiceLocale loc = entity.getLocales().get(0);
+            locDto = ServiceLocaleResponseDto.builder()
+                    .address(loc.getAddress())
+                    .city(loc.getCity())
+                    .country(loc.getCountry())
+                    .language(loc.getLanguage())
+                    .state(loc.getState())
+                    .province(loc.getProvince())
+                    .postalCode(loc.getPostalCode())
+                    .build();
+        }
 
         List<LuggageSizePriceResponseDto> sizePrices = new ArrayList<>();
         for (LuggageSizePrice sp : entity.getSizePrices()) {
@@ -463,7 +598,7 @@ public class LuggageServiceImpl implements LuggageService {
                 .images(entity.getImages())
                 .description(entity.getDescription())
                 .publicationStatus(entity.getPublicationStatus())
-                .locales(List.of(locDto))
+                .locales(locDto != null ? List.of(locDto) : List.of())
                 .basePrice(entity.getBasePrice())
                 .sizePrices(sizePrices)
                 .openingHours(openingHours)
@@ -501,15 +636,57 @@ public class LuggageServiceImpl implements LuggageService {
     }
 
     private LuggageBookingResponseDto buildBookingResponseDto(LuggageBooking booking) {
-        LuggageBookingResponseDto dto = new LuggageBookingResponseDto();
-        // ... mapping manuale secondo la tua struttura del DTO
-        return dto;
+        if (booking.getLuggageService() == null) {
+             throw new ValidationException(ErrorConstants.GENERIC_ERROR.name(), "Integrità dati violata: Prenotazione " + booking.getId() + " senza servizio associato");
+        }
+        String firstName = booking.getBillingFirstName();
+        String lastName = booking.getBillingLastName();
+        if ((firstName == null || firstName.isBlank()) && booking.getUser() != null) {
+            firstName = booking.getUser().getName();
+        }
+        if ((lastName == null || lastName.isBlank()) && booking.getUser() != null) {
+            lastName = booking.getUser().getSurname();
+        }
+        String fullName = null;
+        if (firstName != null && !firstName.isBlank() && lastName != null && !lastName.isBlank()) {
+            fullName = firstName + " " + lastName;
+        } else if (firstName != null && !firstName.isBlank()) {
+            fullName = firstName;
+        } else if (lastName != null && !lastName.isBlank()) {
+            fullName = lastName;
+        }
+        return LuggageBookingResponseDto.builder()
+                .id(booking.getId())
+                .serviceType(ServiceType.LUGGAGE)
+                .serviceId(booking.getLuggageService().getId())
+                .serviceName(booking.getLuggageService().getName())
+                .customerFirstName(firstName)
+                .customerLastName(lastName)
+                .customerName(fullName)
+                .status(booking.getStatus())
+                .totalAmount(booking.getTotalAmount())
+                .creationDate(booking.getCreationDate())
+                .pickUpTime(booking.getPickUpTime())
+                .dropOffTime(booking.getDropOffTime())
+                .bagsSmall(booking.getBagsSmall())
+                .bagsMedium(booking.getBagsMedium())
+                .bagsLarge(booking.getBagsLarge())
+                .specialRequests(booking.getSpecialRequests())
+                .build();
     }
 
     private LuggageBooking buildBookingEntity(LuggageBookingRequestDto dto, User user, LuggageServiceEntity service) {
-        LuggageBooking booking = new LuggageBooking();
-        // ... set campi secondo necessità
-        return booking;
+        return LuggageBooking.builder()
+                .user(user)
+                .luggageService(service)
+                .dropOffTime(dto.getDropOffTime())
+                .pickUpTime(dto.getPickUpTime())
+                .bagsSmall(dto.getBagsSmall() != null ? dto.getBagsSmall() : 0)
+                .bagsMedium(dto.getBagsMedium() != null ? dto.getBagsMedium() : 0)
+                .bagsLarge(dto.getBagsLarge() != null ? dto.getBagsLarge() : 0)
+                .specialRequests(dto.getSpecialRequests())
+                .totalAmount(dto.getTotalAmount())
+                .build();
     }
 
     private LuggageServiceResponseDto buildServiceResponseDto(LuggageServiceEntity entity) {
@@ -537,5 +714,152 @@ public class LuggageServiceImpl implements LuggageService {
     public List<LuggageServiceProviderResponseDto> getLuggageServicesByProviderId(Long providerId) {
         // TODO: implementazione reale
         return Collections.emptyList();
+    }
+
+    // ===================================================================
+    // PRICE CALCULATION METHODS
+    // ===================================================================
+
+    private BigDecimal calculateTotalAmount(OffsetDateTime dropOffTime, OffsetDateTime pickUpTime,
+                                            int bagsSmall, int bagsMedium, int bagsLarge,
+                                            List<LuggageSizePrice> sizePrices) {
+        if (dropOffTime == null || pickUpTime == null || sizePrices == null) {
+            return BigDecimal.ZERO;
+        }
+
+        long diffInMinutes = Duration.between(dropOffTime, pickUpTime).toMinutes();
+        if (diffInMinutes <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        // Round up to the next hour
+        long totalHours = (diffInMinutes + 59) / 60;
+        long fullDays = totalHours / 24;
+        long remainingHours = totalHours % 24;
+
+        BigDecimal totalCost = BigDecimal.ZERO;
+
+        // SMALL
+        if (bagsSmall > 0) {
+            totalCost = totalCost.add(calculateBagCost("SMALL", bagsSmall, fullDays, remainingHours, sizePrices));
+        }
+        // MEDIUM
+        if (bagsMedium > 0) {
+            totalCost = totalCost.add(calculateBagCost("MEDIUM", bagsMedium, fullDays, remainingHours, sizePrices));
+        }
+        // LARGE
+        if (bagsLarge > 0) {
+            totalCost = totalCost.add(calculateBagCost("LARGE", bagsLarge, fullDays, remainingHours, sizePrices));
+        }
+
+        return totalCost.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateBagCost(String sizeLabel, int count, long fullDays, long remainingHours, List<LuggageSizePrice> sizePrices) {
+        LuggageSizePrice priceConfig = sizePrices.stream()
+                .filter(sp -> sp.getSizeLabel() != null && sp.getSizeLabel().equalsIgnoreCase(sizeLabel))
+                .findFirst()
+                .orElse(null);
+
+        if (priceConfig == null) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal pPerHour = priceConfig.getPricePerHour() != null ? priceConfig.getPricePerHour() : BigDecimal.ZERO;
+        BigDecimal pPerDay = priceConfig.getPricePerDay() != null ? priceConfig.getPricePerDay() : BigDecimal.ZERO;
+
+        // Normalization logic: if daily is 0 and hourly > 0, set daily = hourly * 24
+        if (pPerDay.compareTo(BigDecimal.ZERO) == 0 && pPerHour.compareTo(BigDecimal.ZERO) > 0) {
+            pPerDay = pPerHour.multiply(BigDecimal.valueOf(24));
+        }
+        
+        BigDecimal finalHourly = pPerHour.compareTo(BigDecimal.ZERO) > 0 ? pPerHour : pPerDay;
+
+        // Cost for full days
+        BigDecimal costFullDays = pPerDay.multiply(BigDecimal.valueOf(fullDays));
+
+        // Cost for remaining hours
+        BigDecimal costRemainingHourly = finalHourly.multiply(BigDecimal.valueOf(remainingHours));
+        // Cap at daily rate
+        BigDecimal costRemaining = costRemainingHourly.min(pPerDay);
+
+        BigDecimal costPerBag = costFullDays.add(costRemaining);
+        
+        return costPerBag.multiply(BigDecimal.valueOf(count));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LuggageBookingValidationResponseDto validateLuggageBookingByCode(Long providerId, String code) {
+        String digits = code != null ? code.replaceAll("\\D+", "") : null;
+        if (digits == null || digits.isBlank()) {
+            return LuggageBookingValidationResponseDto.builder()
+                    .valid(false)
+                    .serviceType(ServiceType.LUGGAGE.name())
+                    .build();
+        }
+        Long bookingId;
+        try {
+            bookingId = Long.parseLong(digits);
+        } catch (NumberFormatException e) {
+            return LuggageBookingValidationResponseDto.builder()
+                    .valid(false)
+                    .serviceType(ServiceType.LUGGAGE.name())
+                    .build();
+        }
+
+        LuggageBooking booking = luggageBookingJpa.findById(bookingId)
+                .orElseThrow(() -> new ValidationException(
+                        ErrorConstants.BOOKING_LUGGAGE_NOT_FOUND.name(),
+                        ErrorConstants.BOOKING_LUGGAGE_NOT_FOUND.getMessage()));
+
+        if (booking.getLuggageService() == null || booking.getLuggageService().getUser() == null) {
+            throw new ValidationException(
+                    ErrorConstants.BOOKING_LUGGAGE_NOT_FOUND.name(),
+                    ErrorConstants.BOOKING_LUGGAGE_NOT_FOUND.getMessage());
+        }
+
+        Long ownerId = booking.getLuggageService().getUser().getId();
+        if (ownerId == null || !ownerId.equals(providerId)) {
+            throw new ValidationException(
+                    ErrorConstants.UNAUTHORIZED.name(),
+                    "Non sei autorizzato a validare questa prenotazione.");
+        }
+
+        boolean statusValid = booking.getStatus() == BookingStatus.FULL_PAYMENT_COMPLETED
+                || booking.getStatus() == BookingStatus.COMPLETED;
+
+        String firstName = booking.getBillingFirstName();
+        String lastName = booking.getBillingLastName();
+        if ((firstName == null || firstName.isBlank()) && booking.getUser() != null) {
+            firstName = booking.getUser().getName();
+        }
+        if ((lastName == null || lastName.isBlank()) && booking.getUser() != null) {
+            lastName = booking.getUser().getSurname();
+        }
+        String fullName = null;
+        if (firstName != null && !firstName.isBlank() && lastName != null && !lastName.isBlank()) {
+            fullName = firstName + " " + lastName;
+        } else if (firstName != null && !firstName.isBlank()) {
+            fullName = firstName;
+        } else if (lastName != null && !lastName.isBlank()) {
+            fullName = lastName;
+        }
+
+        return LuggageBookingValidationResponseDto.builder()
+                .valid(statusValid)
+                .serviceType(ServiceType.LUGGAGE.name())
+                .bookingId(booking.getId())
+                .firstName(firstName)
+                .lastName(lastName)
+                .fullName(fullName)
+                .serviceName(booking.getLuggageService().getName())
+                .dropOffTime(booking.getDropOffTime() != null ? booking.getDropOffTime().toString() : null)
+                .pickUpTime(booking.getPickUpTime() != null ? booking.getPickUpTime().toString() : null)
+                .bagsSmall(booking.getBagsSmall())
+                .bagsMedium(booking.getBagsMedium())
+                .bagsLarge(booking.getBagsLarge())
+                .totalAmount(booking.getTotalAmount() != null ? booking.getTotalAmount().toPlainString() : null)
+                .build();
     }
 }

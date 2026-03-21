@@ -21,6 +21,7 @@ import us.hogu.controller.dto.request.RestaurantAdvancedSearchRequestDto;
 import us.hogu.controller.dto.request.RestaurantAvailabilityRequestDto;
 import us.hogu.controller.dto.response.RestaurantAvailabilityResponseDto;
 import us.hogu.controller.dto.response.ServiceSummaryResponseDto;
+import us.hogu.controller.dto.response.RestaurantBookingValidationResponseDto;
 import us.hogu.repository.projection.RestaurantManagementProjection;
 
 public interface RestaurantService {
@@ -43,6 +44,16 @@ public interface RestaurantService {
 
 	Page<RestaurantBookingResponseDto> getRestaurantBookings(Long restaurantId, Long providerId, Pageable pageable);
 
+	Page<RestaurantBookingResponseDto> getRestaurantBookingsPending(Long restaurantId, Long providerId, Pageable pageable);
+
+	Page<RestaurantBookingResponseDto> getRestaurantBookingsHistory(Long restaurantId, Long providerId, Pageable pageable);
+	
+	Page<RestaurantBookingResponseDto> getRestaurantBookingsUpcoming(Long restaurantId, Long providerId, Pageable pageable);
+
+	void acceptBooking(Long providerId, Long bookingId);
+
+	void cancelBooking(Long providerId, Long bookingId, String reason);
+
 	Page<RestaurantBookingResponseDto> getUserRestaurantBookings(Long userId, Pageable pageable);
 
 	Page<ServiceSummaryResponseDto> getActiveRestaurants(Pageable pageable);
@@ -57,4 +68,15 @@ public interface RestaurantService {
 
 	RestaurantServiceDetailResponseDto getRestaurantServiceByIdAndProvider(Long serviceId, Long providerId);
 
+    Page<RestaurantBookingResponseDto> getCompletedBookingsForCommissions(Long providerId, Pageable pageable);
+
+    us.hogu.client.feign.dto.response.PaymentResponseDto payRestaurantCommissions(Long providerId, String returnUrl, String cancelUrl);
+
+    us.hogu.client.feign.dto.response.PaymentResponseDto executeRestaurantCommissionPayment(Long providerId, String paymentId, String payerId);
+
+    RestaurantBookingValidationResponseDto validateBookingByCode(Long providerId, String code);
+
+    us.hogu.client.feign.dto.response.PaymentResponseDto payRestaurantCommissionsStripe(Long providerId, String returnUrl, String cancelUrl);
+
+    us.hogu.client.feign.dto.response.PaymentResponseDto executeRestaurantCommissionPaymentStripe(Long providerId, String paymentId);
 }

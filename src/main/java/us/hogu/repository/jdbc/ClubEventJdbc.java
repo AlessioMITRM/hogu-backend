@@ -19,6 +19,12 @@ import org.springframework.stereotype.Repository;
 import lombok.RequiredArgsConstructor;
 import us.hogu.controller.dto.response.EventPublicResponseDto;
 
+import java.util.stream.Collectors;
+import java.util.Collections;
+import java.util.Map;
+import us.hogu.controller.dto.response.EventPricingConfigurationResponseDto;
+import us.hogu.model.enums.PricingType;
+
 @Repository
 @RequiredArgsConstructor
 public class ClubEventJdbc {
@@ -26,23 +32,17 @@ public class ClubEventJdbc {
 
 	
 	public Page<EventPublicResponseDto> getEventsForPublicWithFilters(
-	        String location,
+	        String location, // Ignored now
+	        String provinceParam,
+	        String countryParam,
 	        String eventType,
 	        String date,
 	        Boolean table,
+	        String language,
 	        Pageable pageable
 	) {
-
-	    String cityParam = null;
-	    String stateParam = null;
-
-	    if (location != null && !location.trim().isEmpty()) {
-	        String[] parts = location.split(",");
-	        cityParam = parts[0].trim();
-	        if (parts.length > 1) {
-	            stateParam = parts[1].trim();
-	        }
-	    }
+	    // Ignore location string parsing
+	    // String cityParam = null; ...
 
 	    OffsetDateTime startDate = null;
 	    OffsetDateTime endDate = null;
@@ -63,8 +63,8 @@ public class ClubEventJdbc {
 
 	    MapSqlParameterSource params = new MapSqlParameterSource();
 	    params.addValue("eventType", eventType != null ? "%" + eventType + "%" : null);
-	    params.addValue("city", cityParam != null ? "%" + cityParam + "%" : null);
-	    params.addValue("state", stateParam != null ? "%" + stateParam + "%" : null);
+	    params.addValue("country", countryParam != null ? "%" + countryParam.trim() + "%" : null);
+	    params.addValue("province", provinceParam != null ? "%" + provinceParam.trim() + "%" : null);
 	    params.addValue("startDate", startDate);
 	    params.addValue("endDate", endDate);
 	    params.addValue("limit", pageable.getPageSize());
@@ -86,12 +86,12 @@ public class ClubEventJdbc {
 	        sql.append(" AND e.start_time >= NOW() ");
 	    }
 
-	    if (cityParam != null) {
-	        sql.append(" AND LOWER(CAST(sl.city AS TEXT)) LIKE LOWER(:city) ");
+	    if (countryParam != null) {
+	        sql.append(" AND LOWER(CAST(sl.country AS TEXT)) LIKE LOWER(:country) ");
 	    }
 
-	    if (stateParam != null) {
-	        sql.append(" AND LOWER(CAST(sl.state AS TEXT)) LIKE LOWER(:state) ");
+	    if (provinceParam != null) {
+	        sql.append(" AND LOWER(CAST(sl.province AS TEXT)) LIKE LOWER(:province) ");
 	    }
 
 	    if (eventType != null) {
@@ -100,7 +100,7 @@ public class ClubEventJdbc {
 	        sql.append(" OR LOWER(e.dj_name) LIKE LOWER(:eventType)) ");
 	    }
 
-	    sql.append(" AND (e.max_capacity > e.occupied_capacity) ");
+	    sql.append(" AND (e.max_capacity > COALESCE(e.occupied_capacity, 0)) ");
 
 	    if (Boolean.TRUE.equals(table)) {
 	        sql.append(" AND EXISTS ( ");
@@ -114,8 +114,8 @@ public class ClubEventJdbc {
 	    Integer total = jdbcTemplate.queryForObject(countSql, params, Integer.class);
 
 	    String selectSql =
-	            "SELECT DISTINCT e.id, e.name, e.description, e.start_time, e.end_time, " +
-	            "e.price, e.dj_name, e.theme, e.images, sl.city, sl.address, cs.name AS club_name, " +
+	            "SELECT DISTINCT e.id, e.club_service_id, e.name, e.description, e.start_time, e.end_time, " +
+	            "e.price, e.dj_name, e.theme, e.images, e.max_capacity, sl.city, sl.address, cs.name AS club_name, " +
 
 	            " (SELECT MIN(ep.price) FROM hogu.event_pricing_configurations ep " +
 	            "   WHERE ep.event_club_service_id = e.id AND ep.pricing_type = 'MAN') AS price_man, " +
@@ -129,6 +129,48 @@ public class ClubEventJdbc {
 	            sql + " ORDER BY e.start_time ASC LIMIT :limit OFFSET :offset";
 
 	    List<EventPublicResponseDto> results = jdbcTemplate.query(selectSql, params, (rs, rowNum) -> mapRowToDto(rs));
+
+	    // === NEW LOGIC TO POPULATE PRICING CONFIGURATIONS ===
+	    if (!results.isEmpty()) {
+	        List<Long> eventIds = results.stream().map(EventPublicResponseDto::getId).collect(Collectors.toList());
+	        MapSqlParameterSource pricingParams = new MapSqlParameterSource();
+	        pricingParams.addValue("eventIds", eventIds);
+	        
+	        String pricingSql = "SELECT * FROM hogu.event_pricing_configurations WHERE event_club_service_id IN (:eventIds)";
+	        
+	        List<Map<String, Object>> pricingRows = jdbcTemplate.queryForList(pricingSql, pricingParams);
+	        
+	        // Group by event_club_service_id
+	        Map<Long, List<EventPricingConfigurationResponseDto>> pricingMap = pricingRows.stream()
+	            .collect(Collectors.groupingBy(
+	                row -> ((Number) row.get("event_club_service_id")).longValue(),
+	                Collectors.mapping(row -> {
+	                	Object priceObj = row.get("price");
+	                	java.math.BigDecimal price = null;
+	                	if (priceObj instanceof java.math.BigDecimal) {
+	                		price = (java.math.BigDecimal) priceObj;
+	                	} else if (priceObj instanceof Number) {
+	                		price = java.math.BigDecimal.valueOf(((Number) priceObj).doubleValue());
+	                	}
+	                	
+	                	return EventPricingConfigurationResponseDto.builder()
+	                        .id(((Number) row.get("id")).longValue())
+	                        .pricingType(PricingType.valueOf((String) row.get("pricing_type")))
+	                        .description((String) row.get("description"))
+	                        .price(price)
+	                        //.capacity((Integer) row.get("capacity")) // Assuming capacity column exists, otherwise omit
+	                        //.isActive((Boolean) row.get("is_active")) // Assuming is_active column exists
+	                        .build();
+	                }, 
+	                Collectors.toList())
+	            ));
+	        
+	        // Attach to DTOs
+	        for (EventPublicResponseDto dto : results) {
+	            dto.setPricingConfigurations(pricingMap.getOrDefault(dto.getId(), Collections.emptyList()));
+	        }
+	    }
+	    // ====================================================
 
 	    return new PageImpl<>(results, pageable, total != null ? total : 0);
 	}
@@ -157,6 +199,8 @@ public class ClubEventJdbc {
 
 				.djName(rs.getString("dj_name")).theme(rs.getString("theme")).images(imagesList)
 				.clubName(rs.getString("club_name")).city(rs.getString("city")).address(rs.getString("address"))
+				.maxCapacity(rs.getObject("max_capacity", Integer.class))
+				.clubId(rs.getLong("club_service_id"))
 				.build();
 	}
 }

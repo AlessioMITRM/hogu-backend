@@ -21,7 +21,9 @@ import javax.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import us.hogu.model.enums.PricingType;
 
 @Data
@@ -39,6 +41,8 @@ public class EventPricingConfiguration {
     @NotNull(message = "L'evento club service è obbligatorio")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_club_service_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private EventClubServiceEntity eventClubService;
     
     @NotNull(message = "Il tipo di prezzo è obbligatorio")

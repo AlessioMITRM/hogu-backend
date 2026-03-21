@@ -23,7 +23,7 @@ public class EventCreateRequestDto {
     private String name;
 
     @NotBlank(message = "La descrizione dell'evento è obbligatoria")
-    @Size(min = 10, max = 500, message = "La descrizione deve essere tra 10 e 500 caratteri")
+    @Size(min = 270, max = 1000, message = "La descrizione deve essere tra 270 e 1000 caratteri")
     private String description;
 
     @NotNull(message = "L'orario di inizio è obbligatorio")

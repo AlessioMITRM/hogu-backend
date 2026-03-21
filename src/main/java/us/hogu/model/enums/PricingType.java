@@ -6,5 +6,6 @@ public enum PricingType {
     VIP_TABLE,
     STANDARD_TABLE,
     COUPLE,
-    GROUP
+    GROUP,
+    STANDARD
 }

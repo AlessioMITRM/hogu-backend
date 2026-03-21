@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -38,8 +39,11 @@ import us.hogu.controller.dto.response.RestaurantManagementResponseDto;
 import us.hogu.controller.dto.response.InfoStatsDto;
 import us.hogu.controller.dto.response.RestaurantServiceDetailResponseDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
+import us.hogu.controller.dto.response.RestaurantBookingValidationResponseDto;
 import us.hogu.repository.projection.RestaurantManagementProjection;
 import us.hogu.service.intefaces.RestaurantService;
+import us.hogu.client.feign.dto.response.PaymentResponseDto;
+import org.springframework.beans.factory.annotation.Value;
 
 @RequiredArgsConstructor
 @RestController
@@ -48,6 +52,8 @@ import us.hogu.service.intefaces.RestaurantService;
 @Tag(name = "Restaurant Services Provider", description = "APIs per gestione ristoranti e prenotazioni per il profilo del fornitore")
 public class ResturantProviderController {
     private final RestaurantService restaurantService;
+    @Value("${hogu.client.url}")
+    private String clientUrl;
     
     
     @GetMapping("/get-info")
@@ -57,6 +63,68 @@ public class ResturantProviderController {
             @AuthenticationPrincipal UserAccount userAccount
     ) {
         return ResponseEntity.ok(restaurantService.getInfo(userAccount.getAccountId()));
+    }
+    
+    @GetMapping("/bookings-completed-commissions")
+    @Operation(summary = "Commissioni prenotazioni completate", description = "Restituisce le prenotazioni COMPLETATE per calcolo commissioni")
+    public ResponseEntity<Page<RestaurantBookingResponseDto>> getCompletedBookingsForCommissions(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(restaurantService.getCompletedBookingsForCommissions(userAccount.getAccountId(), pageable));
+    }
+
+    @PostMapping("/commissions/paypal")
+    @Operation(summary = "Paga commissioni ristorante (PayPal)", description = "Crea una transazione PayPal per pagare tutte le commissioni dovute")
+    public ResponseEntity<PaymentResponseDto> payRestaurantCommissions(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount) {
+        String base = clientUrl != null ? clientUrl : "";
+        String url = base + "/provider/restaurant/commissions";
+        
+        PaymentResponseDto response = restaurantService.payRestaurantCommissions(userAccount.getAccountId(), url, url);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/booking/validate")
+    @Operation(summary = "Valida codice prenotazione ristorante", description = "Verifica se il codice prenotazione è valido per oggi e appartiene al provider")
+    public ResponseEntity<RestaurantBookingValidationResponseDto> validateBookingCode(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount,
+            @RequestParam String code
+    ) {
+        RestaurantBookingValidationResponseDto response = restaurantService.validateBookingByCode(userAccount.getAccountId(), code);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/commissions/paypal/execute")
+    @Operation(summary = "Esegui pagamento commissioni (PayPal)", description = "Completa il pagamento PayPal delle commissioni")
+    public ResponseEntity<PaymentResponseDto> executeRestaurantCommissionPayment(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount,
+            @RequestParam String paymentId,
+            @RequestParam String payerId) {
+        PaymentResponseDto response = restaurantService.executeRestaurantCommissionPayment(userAccount.getAccountId(), paymentId, payerId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/commissions/stripe")
+    @Operation(summary = "Paga commissioni ristorante (Stripe)", description = "Crea una sessione Stripe per pagare tutte le commissioni dovute")
+    public ResponseEntity<PaymentResponseDto> payRestaurantCommissionsStripe(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount) {
+        String base = clientUrl != null ? clientUrl : "";
+        String url = base + "/provider/restaurant/commissions";
+        
+        PaymentResponseDto response = restaurantService.payRestaurantCommissionsStripe(userAccount.getAccountId(), url, url);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/commissions/stripe/execute")
+    @Operation(summary = "Esegui pagamento commissioni (Stripe)", description = "Completa il pagamento Stripe delle commissioni")
+    public ResponseEntity<PaymentResponseDto> executeRestaurantCommissionPaymentStripe(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount,
+            @RequestParam String paymentId) {
+        PaymentResponseDto response = restaurantService.executeRestaurantCommissionPaymentStripe(userAccount.getAccountId(), paymentId);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{serviceId}")
@@ -100,6 +168,80 @@ public class ResturantProviderController {
 
         Page<RestaurantBookingResponseDto> response = restaurantService.getRestaurantBookings(id, userAccount.getAccountId(), pageable);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/bookings-pending")
+    @Operation(summary = "Prenotazioni ristorante in attesa", description = "Restituisce le prenotazioni IN ATTESA ricevute per un ristorante (solo proprietario)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Prenotazioni recuperate con successo"),
+        @ApiResponse(responseCode = "401", description = "Utente non autenticato o non autorizzato"),
+        @ApiResponse(responseCode = "404", description = "Ristorante non trovato")
+    })
+    public ResponseEntity<Page<RestaurantBookingResponseDto>> getRestaurantBookingsPending(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserAccount userAccount,
+            @Parameter(description = "ID del ristorante") @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("creationDate").descending());
+
+        Page<RestaurantBookingResponseDto> response = restaurantService.getRestaurantBookingsPending(id, userAccount.getAccountId(), pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/bookings-history")
+    @Operation(summary = "Archivio Prenotazioni Ristorante", description = "Restituisce le prenotazioni passate (data < oggi)")
+    public ResponseEntity<Page<RestaurantBookingResponseDto>> getRestaurantBookingsHistory(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount,
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size); // Ordinamento già gestito nella query (DESC)
+        return ResponseEntity.ok(restaurantService.getRestaurantBookingsHistory(id, userAccount.getAccountId(), pageable));
+    }
+
+    @GetMapping("/{id}/bookings-upcoming")
+    @Operation(summary = "Prenotazioni Future Ristorante", description = "Restituisce le prenotazioni future o odierne (data >= oggi)")
+    public ResponseEntity<Page<RestaurantBookingResponseDto>> getRestaurantBookingsUpcoming(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount,
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size); // Ordinamento già gestito nella query (ASC)
+        return ResponseEntity.ok(restaurantService.getRestaurantBookingsUpcoming(id, userAccount.getAccountId(), pageable));
+    }
+
+    @PostMapping("/booking/{bookingId}/confirm")
+    @Operation(summary = "Conferma prenotazione", description = "Accetta una prenotazione ristorante")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Prenotazione confermata con successo"),
+        @ApiResponse(responseCode = "404", description = "Prenotazione non trovata o non autorizzata"),
+        @ApiResponse(responseCode = "400", description = "Stato non valido")
+    })
+    public ResponseEntity<Void> confirmBooking(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount,
+            @Parameter(description = "ID della prenotazione") @PathVariable Long bookingId) {
+        
+        restaurantService.acceptBooking(userAccount.getAccountId(), bookingId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/booking/{bookingId}")
+    @Operation(summary = "Cancella prenotazione", description = "Cancella/Rifiuta una prenotazione ristorante")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Prenotazione cancellata con successo"),
+        @ApiResponse(responseCode = "404", description = "Prenotazione non trovata o non autorizzata")
+    })
+    public ResponseEntity<Void> cancelBooking(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount,
+            @Parameter(description = "ID della prenotazione") @PathVariable Long bookingId,
+            @Parameter(description = "Motivazione cancellazione") @RequestParam(required = false) String reason) {
+        
+        restaurantService.cancelBooking(userAccount.getAccountId(), bookingId, reason);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/provider/my-restaurants")

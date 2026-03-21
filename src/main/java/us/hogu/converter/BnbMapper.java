@@ -24,12 +24,15 @@ public class BnbMapper {
 
     private final ServiceLocaleMapper serviceLocaleMapper;
 
-    /* ===========================
-     *        BNB SERVICE
-     * =========================== */
+    /*
+     * ===========================
+     * BNB SERVICE
+     * ===========================
+     */
 
     public BnbServiceEntity toEntity(BnbServiceRequestDto dto) {
-        if (dto == null) return null;
+        if (dto == null)
+            return null;
 
         return BnbServiceEntity.builder()
                 .name(dto.getName())
@@ -41,7 +44,8 @@ public class BnbMapper {
     }
 
     public BnbServiceResponseDto toResponse(BnbServiceEntity entity) {
-        if (entity == null) return null;
+        if (entity == null)
+            return null;
 
         return BnbServiceResponseDto.builder()
                 .id(entity.getId())
@@ -62,34 +66,49 @@ public class BnbMapper {
         return entities == null ? List.of() : entities.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
-    /* ===========================
-     *        BNB ROOM
-     * =========================== */
+    /*
+     * ===========================
+     * BNB ROOM
+     * ===========================
+     */
 
     public BnbRoom toRoomEntity(BnbRoomRequestDto dto) {
-        if (dto == null) return null;
+        if (dto == null)
+            return null;
 
         return BnbRoom.builder()
                 .name(dto.getName())
                 .description(dto.getDescription())
                 .maxGuests(dto.getMaxGuests())
-                .basePricePerNight(dto.getBasePricePerNight())
-                .available(dto.getAvailable() != null ? dto.getAvailable() : true)
+                .basePricePerNight(dto.getPriceForNight())
+                .publicationStatus(dto.getAvailable() != null ? dto.getAvailable() : true)
                 .images(dto.getImages())
                 .build();
     }
 
     public BnbRoomResponseDto toRoomResponse(BnbRoom entity) {
-        if (entity == null) return null;
+        if (entity == null)
+            return null;
+
+        List<BnbRoomPriceResponseDto> priceCalendarDtos = entity.getPriceCalendar() == null
+                ? List.of()
+                : entity.getPriceCalendar().stream()
+                        .map(this::toRoomPriceResponse)
+                        .collect(Collectors.toList());
 
         return BnbRoomResponseDto.builder()
                 .id(entity.getId())
+                .images(entity.getImages())
                 .name(entity.getName())
                 .description(entity.getDescription())
                 .maxGuests(entity.getMaxGuests())
                 .priceForNight(entity.getBasePricePerNight())
-                .available(entity.getAvailable())
+                .publicationStatus(entity.getPublicationStatus())
                 .bnbServiceId(entity.getBnbService() != null ? entity.getBnbService().getId() : null)
+                .serviceLocale(entity.getBnbService() != null
+                        ? serviceLocaleMapper.mapEntityToReponse(entity.getBnbService().getLocales())
+                        : List.of())
+                .priceCalendar(priceCalendarDtos)
                 .build();
     }
 
@@ -97,12 +116,15 @@ public class BnbMapper {
         return entities == null ? List.of() : entities.stream().map(this::toRoomResponse).collect(Collectors.toList());
     }
 
-    /* ===========================
-     *  BNB ROOM PRICE CALENDAR
-     * =========================== */
+    /*
+     * ===========================
+     * BNB ROOM PRICE CALENDAR
+     * ===========================
+     */
 
     public BnbRoomPriceCalendar toRoomPriceEntity(BnbRoomPriceRequestDto dto) {
-        if (dto == null) return null;
+        if (dto == null)
+            return null;
 
         return BnbRoomPriceCalendar.builder()
                 .startDate(dto.getStartDate())
@@ -112,7 +134,8 @@ public class BnbMapper {
     }
 
     public BnbRoomPriceResponseDto toRoomPriceResponse(BnbRoomPriceCalendar entity) {
-        if (entity == null) return null;
+        if (entity == null)
+            return null;
 
         return BnbRoomPriceResponseDto.builder()
                 .id(entity.getId())
@@ -123,15 +146,36 @@ public class BnbMapper {
                 .build();
     }
 
-    /* ===========================
-     *        BOOKING
-     * =========================== */
+    /*
+     * ===========================
+     * BOOKING
+     * ===========================
+     */
 
     public BnbBookingResponseDto toBookingResponse(BnbBooking booking) {
-        if (booking == null) return null;
+        if (booking == null)
+            return null;
+
+        String firstName = booking.getBillingFirstName() != null && !booking.getBillingFirstName().isBlank()
+                ? booking.getBillingFirstName()
+                : (booking.getUser() != null ? booking.getUser().getName() : null);
+        String lastName = booking.getBillingLastName() != null && !booking.getBillingLastName().isBlank()
+                ? booking.getBillingLastName()
+                : (booking.getUser() != null ? booking.getUser().getSurname() : null);
+        String fullName = null;
+        if (firstName != null && !firstName.isBlank() && lastName != null && !lastName.isBlank()) {
+            fullName = firstName + " " + lastName;
+        } else if (firstName != null && !firstName.isBlank()) {
+            fullName = firstName;
+        } else if (lastName != null && !lastName.isBlank()) {
+            fullName = lastName;
+        }
 
         return BnbBookingResponseDto.builder()
                 .id(booking.getId())
+                .bookingFullName(fullName)
+                .customerFirstName(firstName)
+                .customerLastName(lastName)
                 .serviceId(booking.getBnbService() != null ? booking.getBnbService().getId() : null)
                 .serviceName(booking.getBnbService() != null ? booking.getBnbService().getName() : null)
                 .roomId(booking.getRoom() != null ? booking.getRoom().getId() : null)
@@ -139,13 +183,16 @@ public class BnbMapper {
                 .checkInDate(booking.getCheckInDate())
                 .checkOutDate(booking.getCheckOutDate())
                 .numberOfGuests(booking.getNumberOfGuests())
+                .roomImages(booking.getRoom() != null ? booking.getRoom().getImages() : null)
                 .status(booking.getStatus())
                 .totalAmount(booking.getTotalAmount())
                 .creationDate(booking.getCreationDate())
+                .bookingCode(booking.getBookingCode())
                 .build();
     }
 
     public List<BnbBookingResponseDto> toBookingResponseList(List<BnbBooking> bookings) {
-        return bookings == null ? List.of() : bookings.stream().map(this::toBookingResponse).collect(Collectors.toList());
+        return bookings == null ? List.of()
+                : bookings.stream().map(this::toBookingResponse).collect(Collectors.toList());
     }
 }

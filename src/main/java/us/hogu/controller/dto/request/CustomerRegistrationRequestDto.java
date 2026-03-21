@@ -1,5 +1,7 @@
 package us.hogu.controller.dto.request;
 
+import java.util.List;
+
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -10,15 +12,21 @@ import us.hogu.model.enums.UserRole;
 
 @Data
 public class CustomerRegistrationRequestDto {
-    @NotBlank 
+    @NotBlank
     private String name;
-    
-    @NotBlank 
+
+    @NotBlank
     private String surname;
-    
-    @Email 
+
+    @Email
     private String email;
-    
-    @Size(min=6) 
-    private String password;   
+
+    @Size(min = 6)
+    private String password;
+
+    private String language;
+
+    private String state;
+
+    private List<ServiceLocaleRequestDto> locales;
 }

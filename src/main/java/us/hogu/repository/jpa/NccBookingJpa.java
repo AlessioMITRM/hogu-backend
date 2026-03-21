@@ -2,6 +2,7 @@ package us.hogu.repository.jpa;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -55,6 +56,9 @@ public interface NccBookingJpa extends JpaRepository<NccBooking, Long> {
     @Query("SELECT COUNT(nb) FROM NccBooking nb WHERE nb.nccService.user.id = :providerId AND nb.status = :status")
     Long countByProviderIdAndStatus(Long providerId, BookingStatus status);
     
+    @Query("SELECT nb FROM NccBooking nb WHERE nb.nccService.user.id = :providerId AND nb.status = :status AND DATE(nb.pickupTime) = :date")
+    List<NccBooking> findByProviderIdStatusAndDate(Long providerId, BookingStatus status, LocalDate date);
+    
     // Per dashboard fornitore - prenotazioni recenti
     @Query("SELECT nb FROM NccBooking nb WHERE nb.nccService.user.id = :providerId ORDER BY nb.creationDate DESC")
     List<NccBooking> findRecentByProviderId(Long providerId);
@@ -62,6 +66,10 @@ public interface NccBookingJpa extends JpaRepository<NccBooking, Long> {
     // Per verificare conflitti di prenotazione (NCC)
     @Query("SELECT nb FROM NccBooking nb WHERE nb.nccService.id = :nccServiceId AND nb.pickupTime = :pickupTime AND nb.status IN :activeStatuses")
     List<NccBooking> findConflictingBookings(Long nccServiceId, OffsetDateTime pickupTime, List<BookingStatus> activeStatuses);
+    
+    // Prenotazioni passate (fino a ieri) per servizio NCC
+    @Query("SELECT nb FROM NccBooking nb WHERE nb.nccService.id = :nccServiceId AND nb.pickupTime < :now")
+    Page<NccBooking> findPastBookings(Long nccServiceId, OffsetDateTime now, Pageable pageable);
     
     // Prenotazioni per destinazione (utile per statistiche)
     @Query("SELECT nb FROM NccBooking nb WHERE nb.nccService.id = :nccServiceId AND LOWER(nb.destination) LIKE LOWER(CONCAT('%', :destination, '%'))")
@@ -71,7 +79,7 @@ public interface NccBookingJpa extends JpaRepository<NccBooking, Long> {
     @Query("SELECT DISTINCT nb FROM NccBooking nb " +
         "JOIN nb.nccService n " +
         "JOIN n.locales loc " +
-        "WHERE (:area IS NULL OR LOWER(loc.city) LIKE LOWER(CONCAT('%', :area, '%')))")
+        "WHERE (:area IS NULL OR LOWER(loc.province) LIKE LOWER(CONCAT('%', :area, '%')))")
     List<NccBooking> findByServiceArea(@Param("area") String area);
     
 	// Query con projection nel repository:
@@ -82,4 +90,7 @@ public interface NccBookingJpa extends JpaRepository<NccBooking, Long> {
 	       "FROM NccBooking nb WHERE nb.nccService.id = :nccServiceId")
 	List<NccBookingProjection> findProjectionsByNccServiceId(Long nccServiceId);
 	
+	@Query("SELECT nb FROM NccBooking nb JOIN FETCH nb.nccService ns JOIN FETCH ns.vehiclesAvailable WHERE nb.status IN :statuses")
+	List<NccBooking> findAllByStatusInWithServiceAndVehicles(@Param("statuses") Collection<BookingStatus> statuses);
+
 }

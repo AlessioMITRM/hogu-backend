@@ -21,10 +21,14 @@ public class LuggageBookingResponseDto {
     private ServiceType serviceType;
     private Long serviceId;
     private String serviceName;
+    private String customerFirstName;
+    private String customerLastName;
+    private String customerName;
     private BookingStatus status;
     private BigDecimal totalAmount;
     private OffsetDateTime creationDate;
-    
+    private String bookingCode;
+
     // Campi specifici bagagli
     private OffsetDateTime pickUpTime;
     private OffsetDateTime dropOffTime;
@@ -37,6 +41,6 @@ public class LuggageBookingResponseDto {
 
     @Builder.Default
     private Integer bagsLarge = 0;
-    
+
     private String specialRequests;
 }

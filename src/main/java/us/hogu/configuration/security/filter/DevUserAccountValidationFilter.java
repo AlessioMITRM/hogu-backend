@@ -26,9 +26,11 @@ import us.hogu.configuration.security.dto.UserAccount;
 import us.hogu.configuration.security.util.UserSVUtils;
 import us.hogu.exception.RoleNotAllowedException;
 import us.hogu.service.intefaces.UserAccountAssemblerService;
+import us.hogu.service.redis.UserStatusRedisService;
 
 /**
- * Filtro custom che valida un secondo JWT e associa un ruolo proveniente da un header separato.
+ * Filtro custom che valida un secondo JWT e associa un ruolo proveniente da un
+ * header separato.
  */
 @Profile("dev")
 @Component
@@ -36,31 +38,32 @@ public class DevUserAccountValidationFilter extends OncePerRequestFilter {
 
     private static final List<String> EXCLUDED_PATHS = List.of(
             "/api/public",
-            "/v3/api-docs", 	
-            "/v3/api-docs", 
-            "/swagger-ui", 
-            "/swagger-ui.html", 
-            "/swagger", 
-            "/webjars"
-    );
+            "/v3/api-docs",
+            "/v3/api-docs",
+            "/swagger-ui",
+            "/swagger-ui.html",
+            "/swagger",
+            "/webjars");
 
     private final UserAccountAssemblerService userAccountAssemblerService;
-    
+    private final UserStatusRedisService userStatusRedisService;
 
-    public DevUserAccountValidationFilter(UserAccountAssemblerService userAccountAssemblerService) {
+    public DevUserAccountValidationFilter(UserAccountAssemblerService userAccountAssemblerService,
+            UserStatusRedisService userStatusRedisService) {
         this.userAccountAssemblerService = userAccountAssemblerService;
+        this.userStatusRedisService = userStatusRedisService;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
-    throws ServletException, IOException {
+            HttpServletResponse response,
+            FilterChain filterChain)
+            throws ServletException, IOException {
 
         String path = request.getRequestURI();
-        boolean excluded = path.equals("/") || 
-        		path.equals("/api/v1/utente/registrazione-controllo") ||
-        		EXCLUDED_PATHS.stream().anyMatch(path::startsWith);
+        boolean excluded = path.equals("/") ||
+                path.equals("/api/v1/utente/registrazione-controllo") ||
+                EXCLUDED_PATHS.stream().anyMatch(path::startsWith);
         if (excluded) {
             filterChain.doFilter(request, response);
             return;
@@ -78,29 +81,34 @@ public class DevUserAccountValidationFilter extends OncePerRequestFilter {
             // Mappa i dati combinati in UserAccount
             UserAccount userAccount = userAccountAssemblerService.buildValidatedUserAccount(jwt);
 
+            if (!userStatusRedisService.isUserActive(userAccount.getAccountId())) {
+                createErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
+                        "Account disattivato o autorizzazione respinta");
+                return;
+            }
+
             // Crea Authentication e sostituisci nel SecurityContext
             Authentication auth = new UsernamePasswordAuthenticationToken(
-            	    userAccount,                   
-            	    null,                          
-            	    userAccount.getAuthorities()   
-            	);                
-            
+                    userAccount,
+                    null,
+                    userAccount.getAuthorities());
+
             SecurityContextHolder.getContext().setAuthentication(auth);
         } catch (RoleNotAllowedException ex) {
-        	createErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, ex.getMessage());
+            createErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, ex.getMessage());
             return;
         } catch (UsernameNotFoundException ex) {
-        	createErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, ex.getMessage());
+            createErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, ex.getMessage());
             return;
         } catch (Exception ex) {
-        	createErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, 
-        			ErrorConstants.GENERIC_ERROR_AUTHORIZATION.getMessage());
+            createErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
+                    ErrorConstants.GENERIC_ERROR_AUTHORIZATION.getMessage());
             return;
         }
 
         filterChain.doFilter(request, response);
     }
-    
+
     private void createErrorResponse(HttpServletResponse response, int status, String message) throws IOException {
         response.setStatus(status);
         response.setContentType("application/json");
@@ -114,4 +122,3 @@ public class DevUserAccountValidationFilter extends OncePerRequestFilter {
     }
 
 }
-

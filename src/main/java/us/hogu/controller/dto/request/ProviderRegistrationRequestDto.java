@@ -12,8 +12,8 @@ import us.hogu.model.enums.ServiceType;
 
 @Data
 public class ProviderRegistrationRequestDto {
-    
-	@NotBlank
+
+    @NotBlank
     private String name;
 
     @Email(message = "Email non valida")
@@ -22,10 +22,22 @@ public class ProviderRegistrationRequestDto {
 
     @Size(min = 6, message = "La password deve contenere almeno 6 caratteri")
     private String password;
-    
+
     @NotNull
     private ServiceType serviceType;
 
-    // Lista di documenti opzionale
     private List<UserDocumentRequestDto> documents;
+
+    private String description;
+
+    private String language;
+
+    private String state;
+
+    @NotBlank(message = "L'IBAN è obbligatorio")
+    private String iban;
+
+    private Long maxCapacity;
+
+    private java.math.BigDecimal basePrice;
 }

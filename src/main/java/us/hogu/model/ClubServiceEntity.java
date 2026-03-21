@@ -19,7 +19,6 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Positive;
 import javax.validation.constraints.PositiveOrZero;
 import javax.validation.constraints.Size;
 
@@ -59,11 +58,11 @@ public class ClubServiceEntity {
     private String description;
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-	@JoinColumn(name = "club_service_id", referencedColumnName = "id")
+    @JoinColumn(name = "club_service_id", referencedColumnName = "id")
     private List<ServiceLocale> locales;
 
     @NotNull(message = "La capacità è obbligatoria")
-    @Positive(message = "La capacità deve essere un numero positivo")
+    @PositiveOrZero(message = "La capacità deve essere un numero positivo o zero")
     @Column(nullable = false)
     private Long maxCapacity;
 
@@ -72,14 +71,14 @@ public class ClubServiceEntity {
     @Column(nullable = false)
     private BigDecimal basePrice;
 
-	@Convert(converter = StringListConverter.class)
-	@Column(name = "images", columnDefinition = "TEXT")
+    @Convert(converter = StringListConverter.class)
+    @Column(name = "images", columnDefinition = "TEXT")
     private List<String> images;
 
     @NotNull(message = "Lo stato di pubblicazione è obbligatorio")
     @Column(nullable = false)
     private Boolean publicationStatus;
-    
+
     @Column(nullable = false, updatable = false)
     @CreationTimestamp
     private OffsetDateTime creationDate;

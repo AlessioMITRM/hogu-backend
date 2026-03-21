@@ -86,14 +86,14 @@ public class StadiaMapServiceImpl implements StadiaMapService {
 		try {
 			return callStadiaAutocomplete(address);
 		} catch (Exception e) {
-			System.out.println("Autocomplete fallito (" + e.getMessage() + "), provo con search...");
+			System.out.println("Autocomplete fallito (" + e + "), provo con search...");
 		}
 
 		// 2. SECONDO TENTATIVO: v1/search
 		try {
 			return callStadiaSearch(address);
 		} catch (Exception e) {
-			System.out.println("Search fallito (" + e.getMessage() + "), provo pulizia indirizzo...");
+			System.out.println("Search fallito (" + e + "), provo pulizia indirizzo...");
 		}
 
 		// 3. TERZO TENTATIVO: Pulizia indirizzo (rimozione civico)

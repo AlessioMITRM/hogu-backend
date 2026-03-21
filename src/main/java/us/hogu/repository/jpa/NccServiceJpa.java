@@ -19,104 +19,117 @@ import us.hogu.repository.projection.NccManagementProjection;
 import us.hogu.repository.projection.NccSummaryProjection;
 
 public interface NccServiceJpa extends JpaRepository<NccServiceEntity, Long> {
-    
-	Optional<NccServiceEntity> findByIdAndUserId(long serviceId, long providerId);
-	
-	List<NccServiceEntity> findByUser(User user);
-	
-    // FRONTEND - lista servizi NCC attivi e pubblici
-	@Query("SELECT DISTINCT n FROM NccServiceEntity n " +
-		   "WHERE n.publicationStatus = true")
-	List<NccServiceEntity> findActiveSummaries();
+
+       Optional<NccServiceEntity> findByIdAndUserId(long serviceId, long providerId);
+
+       List<NccServiceEntity> findByUser(User user);
+
+       // FRONTEND - lista servizi NCC attivi e pubblici
+       @Query("SELECT DISTINCT n FROM NccServiceEntity n " +
+                     "WHERE n.publicationStatus = true")
+       List<NccServiceEntity> findActiveSummaries();
 
        @Query("SELECT DISTINCT n FROM NccServiceEntity n " +
-              "JOIN n.locales loc " +
-              "WHERE n.publicationStatus = true " +
-              "AND (:citySearch IS NULL OR LOWER(loc.city) LIKE LOWER(CONCAT('%', :citySearch, '%'))) " +
-              "AND (:stateSearch IS NULL OR LOWER(loc.state) LIKE LOWER(CONCAT('%', :stateSearch, '%'))) " +
-              "AND (:countrySearch IS NULL OR LOWER(loc.country) LIKE LOWER(CONCAT('%', :countrySearch, '%'))) " +
-              "AND (:language IS NULL OR LOWER(loc.language) = LOWER(:language)) " +
-              "AND (:passengers IS NULL OR EXISTS ( " +
-              "     SELECT 1 FROM VehicleEntity v " +
-              "     WHERE v.nccService = n AND v.numberOfSeats >= :passengers ))")
+                     "JOIN n.locales loc " +
+                     "WHERE n.publicationStatus = true " +
+                     "AND (COALESCE(:searchText, '') = '' " +
+                     "     OR LOWER(n.name) LIKE LOWER(CONCAT('%', :searchText, '%')) " +
+                     "     OR LOWER(loc.province) LIKE LOWER(CONCAT('%', :searchText, '%')) " +
+                     "     OR LOWER(loc.state) LIKE LOWER(CONCAT('%', :searchText, '%')) " +
+                     "     OR LOWER(loc.country) LIKE LOWER(CONCAT('%', :searchText, '%'))) " +
+                     "AND (COALESCE(:language, '') = '' " +
+                     "     OR LOWER(loc.language) IN (LOWER(:language), 'en'))")
        Page<NccServiceEntity> findActiveBySearch(
-              @Param("citySearch") String citySearch,
-              @Param("stateSearch") String stateSearch,
-              @Param("countrySearch") String countrySearch,
-              @Param("passengers") Integer passengers,
-              @Param("language") String language,
-              Pageable pageable);
+                     @Param("searchText") String searchText,
+                     @Param("language") String language,
+                     Pageable pageable);
 
-    // FRONTEND - dettaglio servizio NCC pubblico
-    @Query("SELECT n " +
-           "FROM NccServiceEntity n WHERE n.id = :id AND n.publicationStatus = true")
-    Optional<NccServiceEntity> findDetailById(Long id);
-    
-    // FORNITORE - lista servizi NCC del fornitore (anche non pubblicati)
-    @Query("SELECT n FROM NccServiceEntity n WHERE n.user.id = :providerId")
-    Page<NccServiceEntity> findByProviderId(Long providerId, Pageable page);
-    
-    // FORNITORE - dettaglio servizio NCC per modifica
-    @Query("SELECT n " +
-           "FROM NccServiceEntity n " + 
-		   "LEFT JOIN FETCH n.locales loc " +
-    	   "WHERE n.id = :id AND n.user.id = :providerId " +
-		   "AND (:language IS NULL OR LOWER(loc.language) = LOWER(:language))")
-    Optional<NccServiceEntity> findDetailByIdAndProvider(@Param("id") Long id, @Param("providerId") Long providerId, @Param("language") String language);
-    
-    // FORNITORE - servizi NCC attivi del fornitore
-    @Query("SELECT n FROM NccServiceEntity n " +
-           "WHERE n.user.id = :providerId AND n.publicationStatus = true")
-    List<NccServiceEntity> findActiveByProviderId(Long providerId);
-    
-    // ADMIN - tutti i servizi NCC per gestione
-    @Query("SELECT n FROM NccServiceEntity n")
-    List<NccServiceEntity> findAllForAdmin();
-    
-    // ADMIN - servizi NCC in attesa di approvazione
-    @Query("SELECT n FROM NccServiceEntity n WHERE n.publicationStatus = false")
-    List<NccServiceEntity> findPendingApproval();
-    
-    // Controlli esistenza e autorizzazioni
-    boolean existsByIdAndUserId(Long id, Long providerId);
-    
-    boolean existsByIdAndPublicationStatusTrue(Long id);
-    
-    // Ricerca per range di prezzo
-    @Query("SELECT n FROM NccServiceEntity n " +
-           "WHERE n.publicationStatus = true AND n.basePrice BETWEEN :minPrice AND :maxPrice")
-    List<NccServiceEntity> findActiveByPriceRange(Double minPrice, Double maxPrice);
-    
-    // Statistiche fornitore
-    @Query("SELECT COUNT(n) FROM NccServiceEntity n WHERE n.user.id = :providerId AND n.publicationStatus = true")
-    Long countActiveByProvider(Long providerId);
-    
-    @Query("SELECT COUNT(n) FROM NccServiceEntity n WHERE n.user.id = :providerId")
-    Long countTotalByProvider(Long providerId);
-    
-    // Per verificare se un fornitore ha già un servizio NCC con lo stesso nome
-    @Query("SELECT COUNT(n) FROM NccServiceEntity n WHERE n.user.id = :providerId AND LOWER(n.name) = LOWER(:name)")
-    Long countByProviderIdAndName(Long providerId, String name);
-    
-    // Servizi NCC con veicoli disponibili
-    @Query("SELECT n.id as id, n.name as name, n.description as description, " +
-           "n.basePrice as basePrice, n.locales as locales, n.images as images " +
-           "FROM NccServiceEntity n WHERE n.publicationStatus = true AND n.vehiclesAvailable IS NOT NULL")
-    List<NccServiceEntity> findActiveWithVehicles();
-    
-    // Per homepage - servizi NCC popolari (con più prenotazioni)
-    @Query("SELECT n FROM NccServiceEntity n LEFT JOIN NccBooking b ON b.nccService = n " +
-            "WHERE n.publicationStatus = true GROUP BY n ORDER BY COUNT(b) DESC")
-    List<NccServiceEntity> findPopularActiveServices();
-    
-	@Query("SELECT new us.hogu.controller.dto.response.InfoStatsDto(" +
-            "   CAST(NULL as java.lang.Long), " +
-            "   (SELECT COUNT(b) FROM NccBooking b WHERE b.nccService.user.id = :providerId), " +
-            "   (SELECT COALESCE(SUM(b.totalAmount), 0) FROM NccBooking b WHERE b.nccService.user.id = :providerId) " +
-            ") " +
-            "FROM User u WHERE u.id = :providerId")
-	InfoStatsDto getInfoStatsByProviderId(@Param("providerId") Long providerId);
-	
-	@Query("SELECT n FROM NccServiceEntity n WHERE n.user.id = :providerId")
-	Optional<NccServiceEntity> findByProviderIdForSingleService(Long providerId);
+       @Query("SELECT DISTINCT n FROM NccServiceEntity n " +
+                     "JOIN n.locales loc " +
+                     "WHERE n.publicationStatus = true " +
+                     "AND (:province IS NULL OR LOWER(loc.province) LIKE LOWER(CONCAT('%', :province, '%'))) " +
+                     "AND (:country IS NULL OR LOWER(loc.country) LIKE LOWER(CONCAT('%', :country, '%'))) " +
+                     "AND (COALESCE(:language, '') = '' " +
+                     "     OR LOWER(loc.language) IN (LOWER(:language), 'en'))")
+       Page<NccServiceEntity> findActiveByLocation(
+                     @Param("province") String province,
+                     @Param("country") String country,
+                     @Param("language") String language,
+                     Pageable pageable);
+
+       // FRONTEND - dettaglio servizio NCC pubblico
+       @Query("SELECT n " +
+                     "FROM NccServiceEntity n " +
+                     "LEFT JOIN FETCH n.locales loc " +
+                     "WHERE n.id = :id AND n.publicationStatus = true " +
+                     "AND (:language IS NULL OR LOWER(loc.language) IN (LOWER(:language), 'en'))")
+       Optional<NccServiceEntity> findDetailById(@Param("id") Long id, @Param("language") String language);
+
+       // FORNITORE - lista servizi NCC del fornitore (anche non pubblicati)
+       @Query("SELECT n FROM NccServiceEntity n WHERE n.user.id = :providerId")
+       Page<NccServiceEntity> findByProviderId(Long providerId, Pageable page);
+
+       // FORNITORE - dettaglio servizio NCC per modifica
+       @Query("SELECT n " +
+                     "FROM NccServiceEntity n " +
+                     "WHERE n.id = :id AND n.user.id = :providerId")
+       Optional<NccServiceEntity> findDetailByIdAndProvider(@Param("id") Long id, @Param("providerId") Long providerId);
+
+       // FORNITORE - servizi NCC attivi del fornitore
+       @Query("SELECT n FROM NccServiceEntity n " +
+                     "WHERE n.user.id = :providerId AND n.publicationStatus = true")
+       List<NccServiceEntity> findActiveByProviderId(Long providerId);
+
+       // ADMIN - tutti i servizi NCC per gestione
+       @Query("SELECT n FROM NccServiceEntity n")
+       List<NccServiceEntity> findAllForAdmin();
+
+       // ADMIN - servizi NCC in attesa di approvazione
+       @Query("SELECT n FROM NccServiceEntity n WHERE n.publicationStatus = false")
+       List<NccServiceEntity> findPendingApproval();
+
+       // Controlli esistenza e autorizzazioni
+       boolean existsByIdAndUserId(Long id, Long providerId);
+
+       boolean existsByIdAndPublicationStatusTrue(Long id);
+
+       // Ricerca per range di prezzo
+       @Query("SELECT n FROM NccServiceEntity n " +
+                     "WHERE n.publicationStatus = true AND n.basePrice BETWEEN :minPrice AND :maxPrice")
+       List<NccServiceEntity> findActiveByPriceRange(Double minPrice, Double maxPrice);
+
+       // Statistiche fornitore
+       @Query("SELECT COUNT(n) FROM NccServiceEntity n WHERE n.user.id = :providerId AND n.publicationStatus = true")
+       Long countActiveByProvider(Long providerId);
+
+       @Query("SELECT COUNT(n) FROM NccServiceEntity n WHERE n.user.id = :providerId")
+       Long countTotalByProvider(Long providerId);
+
+       // Per verificare se un fornitore ha già un servizio NCC con lo stesso nome
+       @Query("SELECT COUNT(n) FROM NccServiceEntity n WHERE n.user.id = :providerId AND LOWER(n.name) = LOWER(:name)")
+       Long countByProviderIdAndName(Long providerId, String name);
+
+       // Servizi NCC con veicoli disponibili
+       @Query("SELECT n.id as id, n.name as name, n.description as description, " +
+                     "n.basePrice as basePrice, n.locales as locales, n.images as images " +
+                     "FROM NccServiceEntity n WHERE n.publicationStatus = true AND n.vehiclesAvailable IS NOT NULL")
+       List<NccServiceEntity> findActiveWithVehicles();
+
+       // Per homepage - servizi NCC popolari (con più prenotazioni)
+       @Query("SELECT n FROM NccServiceEntity n LEFT JOIN NccBooking b ON b.nccService = n " +
+                     "WHERE n.publicationStatus = true GROUP BY n ORDER BY COUNT(b) DESC")
+       List<NccServiceEntity> findPopularActiveServices();
+
+       @Query("SELECT new us.hogu.controller.dto.response.InfoStatsDto(" +
+                     "   n.id, " +
+                     "   n.name, " +
+                     "   n.description, " +
+                     "   (SELECT COUNT(b) FROM NccBooking b WHERE b.nccService = n), " +
+                     "   (SELECT COALESCE(SUM(b.totalAmount), 0) FROM NccBooking b WHERE b.nccService = n) " +
+                     ") " +
+                     "FROM NccServiceEntity n WHERE n.user.id = :providerId")
+       InfoStatsDto getInfoStatsByProviderId(@Param("providerId") Long providerId);
+
+       @Query("SELECT n FROM NccServiceEntity n WHERE n.user.id = :providerId")
+       Optional<NccServiceEntity> findByProviderIdForSingleService(Long providerId);
 }

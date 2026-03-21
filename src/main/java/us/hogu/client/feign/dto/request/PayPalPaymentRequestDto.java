@@ -21,6 +21,8 @@ public class PayPalPaymentRequestDto {
     private ServiceType serviceType;
     private String description;
     private String customerEmail;
+    private String returnUrl;
+    private String cancelUrl;
     private List<PayPalItem> items;
     
     @Data

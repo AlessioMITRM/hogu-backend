@@ -33,7 +33,7 @@ import us.hogu.service.intefaces.RestaurantService;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api/services/restaurants")
+@RequestMapping("/api/customer/services/restaurants")
 @PreAuthorize("hasAnyRole(T(us.hogu.model.enums.UserRole).CUSTOMER.name())")
 @Tag(name = "Restaurant Services Customer", description = "APIs per gestione ristoranti e prenotazioni per il profilo del cliente")
 public class ResturantCustomerController {

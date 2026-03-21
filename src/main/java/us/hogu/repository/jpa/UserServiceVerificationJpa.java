@@ -22,4 +22,6 @@ public interface UserServiceVerificationJpa extends JpaRepository<UserServiceVer
 	
 	List<UserServiceVerification> findByVerificationStatusAndUser(VerificationStatusServiceEY verificationStatus, User user);
 	
+	List<UserServiceVerification> findByVerificationStatus(VerificationStatusServiceEY verificationStatus);
+	
 }

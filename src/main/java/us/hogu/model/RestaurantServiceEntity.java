@@ -18,7 +18,10 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -40,43 +43,47 @@ public class RestaurantServiceEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @NotNull(message = "Il provider è obbligatorio")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "provider_id", nullable = false)
     private User user;
 
+    @NotBlank(message = "Il nome del ristorante è obbligatorio")
+    @Size(max = 255, message = "Il nome non può superare i 255 caratteri")
+    @Column(length = 255)
     private String name;
-    
+
+    @Column(length = 1000)
     private String description;
-    
+
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-	@JoinColumn(name = "restaurant_service_id")
+    @JoinColumn(name = "restaurant_service_id")
     private List<ServiceLocale> locales;
-    
+
     @Column(name = "menu", columnDefinition = "TEXT")
     private String menu;
-    
+
     private Integer capacity;
-    
+
     @Column(name = "base_price")
     private BigDecimal basePrice;
-    
-	@Convert(converter = StringListConverter.class)
-	@Column(name = "images", columnDefinition = "TEXT")
+
+    @Convert(converter = StringListConverter.class)
+    @Column(name = "images", columnDefinition = "TEXT")
     private List<String> images;
-    
+
     @Column(name = "creation_date")
     @CreationTimestamp
     private OffsetDateTime creationDate;
-    
+
     @Column(name = "publication_status")
     private Boolean publicationStatus;
-    
+
     @OneToMany(mappedBy = "restaurantService")
     @ToString.Exclude
     private List<RestaurantBooking> bookings;
-    
+
     @OneToMany(mappedBy = "restaurantService")
     @ToString.Exclude
     private List<Review> reviews;

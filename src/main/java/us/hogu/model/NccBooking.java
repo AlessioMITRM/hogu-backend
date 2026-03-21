@@ -30,6 +30,16 @@ public class NccBooking extends Booking {
     
     private String destination;
     
+    private Integer passengers;
+    
+    private Double pickupLatitude;
+    
+    private Double pickupLongitude;
+    
+    private Double destinationLatitude;
+    
+    private Double destinationLongitude;
+    
     @ManyToOne
     @JoinColumn(name = "ncc_service_id")
     private NccServiceEntity nccService;

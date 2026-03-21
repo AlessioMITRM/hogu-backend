@@ -1,6 +1,7 @@
 package us.hogu.service.intefaces;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 import javax.management.ServiceNotFoundException;
 
@@ -11,21 +12,20 @@ import org.springframework.web.multipart.MultipartFile;
 import us.hogu.controller.dto.request.NccBookingRequestDto;
 import us.hogu.controller.dto.request.NccSearchRequestDto;
 import us.hogu.controller.dto.request.NccServiceRequestDto;
-import us.hogu.controller.dto.request.RestaurantBookingRequestDto;
 import us.hogu.controller.dto.response.InfoStatsDto;
 import us.hogu.controller.dto.response.NccBookingResponseDto;
+import us.hogu.controller.dto.response.NccBookingValidationResponseDto;
 import us.hogu.controller.dto.response.NccDetailResponseDto;
 import us.hogu.controller.dto.response.NccManagementResponseDto;
 import us.hogu.controller.dto.response.ServiceDetailResponseDto;
 import us.hogu.controller.dto.response.ServiceSummaryResponseDto;
-import us.hogu.model.RestaurantBooking;
-import us.hogu.model.RestaurantServiceEntity;
-import us.hogu.model.User;
-import us.hogu.repository.projection.NccManagementProjection;
 
 public interface NccService {
 
-	ServiceDetailResponseDto getNccServiceDetail(Long serviceId);
+	ServiceDetailResponseDto getNccServiceDetail(Long serviceId, String date, String time, Integer passengers, 
+			String from, String fromCity, String fromProvince, String fromCountry,
+			String to, String toCity, String toProvince, String toCountry,
+			String tripType);
 
 	NccBookingResponseDto createNccBooking(NccBookingRequestDto requestDto, Long userId);
 
@@ -45,12 +45,20 @@ public interface NccService {
 
 	Page<NccBookingResponseDto> getUserNccBookings(Long userId, Pageable pageable);
 
-	Page<ServiceSummaryResponseDto> getActiveNccServices(NccSearchRequestDto searchRequest, Pageable pageable);
+	List<NccBookingResponseDto> getNccFullyPaidBookings(Long serviceId, Long providerId);
 
-	Page<ServiceSummaryResponseDto> searchNccServices(String searchTerm, Pageable pageable);
+	NccBookingResponseDto getCurrentNccBooking(Long serviceId, Long providerId);
+	
+	Page<NccBookingResponseDto> getNccBookingsHistory(Long serviceId, Long providerId, Pageable pageable);
+
+	NccBookingValidationResponseDto validateNccBookingByCode(Long providerId, String code);
+
+	Page<ServiceSummaryResponseDto> getActiveNccServices(NccSearchRequestDto searchRequest, Pageable pageable);
 
 	InfoStatsDto getInfo(Long providerId);
 
 	NccDetailResponseDto getNccServiceByServiceIdAndProviderId(Long serviceId, Long providerId);
+
+	void rectifyBooking(Long providerId, Long bookingId, BigDecimal newPrice, String note);
 
 }

@@ -6,7 +6,8 @@ import java.time.OffsetDateTime;
 
 @Data
 public class LuggageSearchRequestDto {
-    private String location;        // Es: "Roma" o "Roma, Lazio"
+    private ServiceLocaleRequestDto locale;        // Changed to Object
+    // private ServiceLocaleRequestDto locale; // Removed duplicate
     private OffsetDateTime dropOff; // ISO 8601
     private OffsetDateTime pickUp;  // ISO 8601
     private Integer bagsS;

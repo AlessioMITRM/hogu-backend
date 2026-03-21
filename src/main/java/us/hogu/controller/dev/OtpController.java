@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import lombok.RequiredArgsConstructor;
 import us.hogu.service.impl.EmailServiceImpl;
 
-@Profile({"dev"})
+@Profile({ "dev" })
 @RestController
 @RequestMapping("/otp")
 @RequiredArgsConstructor
@@ -20,8 +20,7 @@ public class OtpController {
     @GetMapping("/send")
     public String sendOtp(@RequestParam String email) {
         String otp = otpEmailService.generateOtp();
-        otpEmailService.sendOtpEmail(email, otp);
+        otpEmailService.sendOtpEmail(email, otp, "it");
         return "OTP inviata a " + email;
     }
 }
-

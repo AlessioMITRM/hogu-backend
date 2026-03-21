@@ -2,9 +2,12 @@ package us.hogu.model.enums;
 
 public enum PaymentStatus {
     PENDING("IN_ATTESA"),
+    AUTHORIZED("AUTORIZZATO"),
     COMPLETED("COMPLETATO"),
     FAILED("FALLITO"),
-	REFUNDED("RIMBORSATO");
+    REFUNDED("RIMBORSATO"),
+    VOIDED("ANNULLATO"),
+    EXPIRED("SCADUTO");
     
     private final String italianValue;
     

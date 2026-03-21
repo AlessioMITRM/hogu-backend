@@ -13,5 +13,6 @@ public class BnbServiceRequestDto {
     private Integer totalRooms;
     private Integer maxGuestsForRoom;
     private List<ServiceLocaleRequestDto> locales;
-    private Boolean publcationStatus;
+    private List<String> images;
+    private Boolean publicationStatus;
 }

@@ -58,6 +58,7 @@ public class NccServiceMapper {
                 .name(provider.getName())
                 .build())
             .serviceType(ServiceType.NCC)
+            .available(true)
             .build();
     }
     
@@ -75,6 +76,7 @@ public class NccServiceMapper {
                         .id(entity.getUser().getId())
                         .name(entity.getUser().getName())
                         .build())
+                .available(true)
                 .build();
     }
     

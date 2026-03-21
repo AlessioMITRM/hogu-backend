@@ -48,6 +48,9 @@ public class UserServiceVerification {
 
 	private boolean vatValid; // Partita iva valida
 
+	@Column(length = 1000)
+	private String description; // Descrizione dell'attività fornita in registrazione
+
 	// Stato di approvazione dell’admin per questo servizio
 	@Enumerated(EnumType.ORDINAL)
 	private VerificationStatusServiceEY verificationStatus;
@@ -59,4 +62,8 @@ public class UserServiceVerification {
 	@UpdateTimestamp
 	@Column(nullable = false, updatable = true)
 	private OffsetDateTime lastUpdateDate;
+
+	@javax.persistence.OneToMany(mappedBy = "userServiceVerification", cascade = javax.persistence.CascadeType.ALL, orphanRemoval = true)
+	@lombok.ToString.Exclude
+	private java.util.List<UserDocument> userDocuments;
 }

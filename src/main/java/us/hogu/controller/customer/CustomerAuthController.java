@@ -6,8 +6,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,10 +24,13 @@ import us.hogu.controller.dto.request.PasswordResetDashboard;
 import us.hogu.controller.dto.request.PasswordResetRequestDto;
 import us.hogu.controller.dto.request.ProviderRegistrationRequestDto;
 import us.hogu.controller.dto.request.UserLoginRequestDto;
+import us.hogu.controller.dto.request.UserUpdateRequestDto;
 import us.hogu.configuration.security.dto.UserAccount;
 import us.hogu.controller.dto.request.CustomerRegistrationRequestDto;
 import us.hogu.controller.dto.request.OtpResendRequestDto;
 import us.hogu.controller.dto.response.AuthResponseDto;
+import us.hogu.controller.dto.response.UserProfileResponseDto;
+import us.hogu.controller.dto.response.UserResponseDto;
 import us.hogu.model.enums.UserRole;
 import us.hogu.service.intefaces.UserService;
 import lombok.RequiredArgsConstructor;
@@ -33,27 +39,62 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/customer/auth")
 @Tag(name = "Authentication", description = "APIs per modifiche di autenticazione Customer")
-@PreAuthorize("hasAnyRole(T(us.hogu.model.enums.UserRole).PROVIDER.name())")
+@PreAuthorize("hasAnyRole(T(us.hogu.model.enums.UserRole).CUSTOMER.name())")
 public class CustomerAuthController {
     private final UserService userService;
 
+    @GetMapping("/profile")
+    @Operation(summary = "Ottieni profilo utente", description = "Restituisce i dati del profilo dell'utente autenticato")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Profilo recuperato con successo"),
+            @ApiResponse(responseCode = "401", description = "Utente non autenticato"),
+            @ApiResponse(responseCode = "404", description = "Utente non trovato")
+    })
+    public ResponseEntity<UserResponseDto> getUserProfile(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount) {
+        UserResponseDto response = userService.getUserProfile(userAccount.getAccountId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/profile")
+    @Operation(summary = "Aggiorna profilo utente", description = "Aggiorna i dati del profilo dell'utente autenticato")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Profilo aggiornato con successo"),
+            @ApiResponse(responseCode = "400", description = "Dati di aggiornamento non validi"),
+            @ApiResponse(responseCode = "401", description = "Utente non autenticato")
+    })
+    public ResponseEntity<UserProfileResponseDto> updateUserProfile(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount,
+            @Valid @RequestBody UserUpdateRequestDto requestDto) {
+        UserProfileResponseDto response = userService.updateUserProfile(userAccount.getAccountId(), requestDto);
+        return ResponseEntity.ok(response);
+    }
 
     @PostMapping("/password-reset-account")
     @Operation(summary = "Richiesta Reset Password", description = "Resettare la password dell'account")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Richiesta presa in carico (OTP inviato se email esiste)"),
-        @ApiResponse(responseCode = "400", description = "Formato email non valido"),
-        @ApiResponse(responseCode = "404", description = "Email non trovata (a seconda della policy di sicurezza)")
+            @ApiResponse(responseCode = "200", description = "Richiesta presa in carico (OTP inviato se email esiste)"),
+            @ApiResponse(responseCode = "400", description = "Formato email non valido"),
+            @ApiResponse(responseCode = "404", description = "Email non trovata (a seconda della policy di sicurezza)")
     })
     public ResponseEntity<Void> requestPasswordReset(
-    		@Parameter(hidden = true)
-            @AuthenticationPrincipal UserAccount userAccount,
-            @Valid @RequestBody PasswordResetDashboard request) 
-    {
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount,
+            @Valid @RequestBody PasswordResetDashboard request) {
         userService.passwordResetDashboard(userAccount, request);
-        
+
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/account")
+    @Operation(summary = "Elimina account (GDPR)", description = "Richiesta di cancellazione dell'account utente (diritto all'oblio)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Account eliminato (anonimizzato) con successo"),
+            @ApiResponse(responseCode = "401", description = "Utente non autenticato")
+    })
+    public ResponseEntity<Void> deleteAccount(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserAccount userAccount) {
+        userService.deleteCustomerAccount(userAccount.getAccountId());
         return ResponseEntity.ok().build();
     }
 
 }
-
