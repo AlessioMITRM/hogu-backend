@@ -29,17 +29,17 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import io.jsonwebtoken.security.Keys;
 
-@Profile("dev")
+@Profile({"dev", "stag"})
 @Configuration
 @SuppressWarnings("deprecation")
-public class DevSecurityConfig extends WebSecurityConfigurerAdapter {
+public class DevStagSecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final DevUserAccountValidationFilter userAccountValidationFilter;
 
     @Value("${jwt.secret:myDevJwtSecret_64_characters_minimum__________1234567890}")
     private String jwtSecret;
 
-    public DevSecurityConfig(DevUserAccountValidationFilter userAccountValidationFilter) {
+    public DevStagSecurityConfig(DevUserAccountValidationFilter userAccountValidationFilter) {
         this.userAccountValidationFilter = userAccountValidationFilter;
     }
 

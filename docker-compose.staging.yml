@@ -40,20 +40,35 @@ services:
       - rabbitmq
     restart: always
 
-  # 5. Frontend & Reverse Proxy (React + Nginx)
+  # 5. Frontend (React + Nginx Interno Segreto)
   frontend:
     build:
       context: ./hogu-frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=${CORS_ALLOWED_ORIGIN:-https://staging.hogu.com}/api/v1
+        - VITE_API_BASE_URL=${CORS_ALLOWED_ORIGIN:-https://staging.hogu.com}
     container_name: staging-frontend
-    ports:
-      - "80:80"
-      - "443:443"
+    # NASCONDIAMO le porte dal web esterno! Questo container risponderà solo a Caddy nella rete interna.
+    expose:
+      - "80"
     depends_on:
       - backend
     restart: always
+
+  # 6. Caddy Reverse Proxy (HTTPS Automatico e Gratuito per Stripe/PayPal)
+  caddy:
+    image: caddy:2-alpine
+    container_name: staging-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    # caddy farà finta di essere staging.hogu.us, chiederà il certificato a let's encrypt 
+    # di nascosto sulla porta 80 e rigirerà tutto il traffico sicuro verso staging-frontend!
+    command: caddy reverse-proxy --from staging.hogu.us --to staging-frontend:80
+    depends_on:
+      - frontend
 
 volumes:
   postgres_data:
