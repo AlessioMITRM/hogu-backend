@@ -26,8 +26,7 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        default_schema: hogu
-        hbm2ddl.create_namespaces: true
+        # default_schema rimosso per usare public nativo postgres
         jdbc.time_zone: UTC
 
   servlet:
