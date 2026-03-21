@@ -32,14 +32,14 @@ import io.jsonwebtoken.security.Keys;
 @Profile({"dev", "stag"})
 @Configuration
 @SuppressWarnings("deprecation")
-public class DevStagSecurityConfig extends WebSecurityConfigurerAdapter {
+public class DevSecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final DevUserAccountValidationFilter userAccountValidationFilter;
 
     @Value("${jwt.secret:myDevJwtSecret_64_characters_minimum__________1234567890}")
     private String jwtSecret;
 
-    public DevStagSecurityConfig(DevUserAccountValidationFilter userAccountValidationFilter) {
+    public DevSecurityConfig(DevUserAccountValidationFilter userAccountValidationFilter) {
         this.userAccountValidationFilter = userAccountValidationFilter;
     }
 
