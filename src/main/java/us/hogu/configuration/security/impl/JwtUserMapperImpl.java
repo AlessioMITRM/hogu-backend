@@ -20,41 +20,41 @@ import us.hogu.model.enums.ServiceType;
 
 @RequiredArgsConstructor
 @Component
-@Profile({"dev", "prod"})
 public class JwtUserMapperImpl implements JwtUserMapper {
-	
+
 	@Override
-    public UserAccount mapFromJwtAndHeader(Jwt jwt) {
+	public UserAccount mapFromJwtAndHeader(Jwt jwt) {
 		String accountId = jwt.getClaimAsString(JwtNameParamsHUConstants.UTSER_ID);
 		String email = jwt.getClaimAsString(JwtNameParamsHUConstants.EMAIL);
 		String userRole = jwt.getClaimAsString(JwtNameParamsHUConstants.USER_ROLE);
 		String name = jwt.getClaimAsString(JwtNameParamsHUConstants.NAME);
 		String surname = jwt.getClaimAsString(JwtNameParamsHUConstants.SURNAME);
-		
+
 		List<Map<String, Object>> localesClaim = jwt.getClaim(JwtNameParamsHUConstants.SERVICE_LOCALES);
 		List<ServiceLocale> serviceLocales = null;
-		
+
 		if (localesClaim != null) {
 			serviceLocales = localesClaim.stream().map(map -> ServiceLocale.builder()
-				.id(map.get("id") != null ? ((Number) map.get("id")).longValue() : null)
-				.language((String) map.get("language"))
-				.country((String) map.get("country"))
-				.state((String) map.get("state"))
-				.city((String) map.get("city"))
-				.address((String) map.get("address"))
-				.serviceType(map.get("serviceType") != null ? ServiceType.valueOf((String) map.get("serviceType")) : null) 
-				.build())
-				.collect(Collectors.toList());
+					.id(map.get("id") != null ? ((Number) map.get("id")).longValue() : null)
+					.language((String) map.get("language"))
+					.country((String) map.get("country"))
+					.state((String) map.get("state"))
+					.city((String) map.get("city"))
+					.address((String) map.get("address"))
+					.serviceType(map.get("serviceType") != null ? ServiceType.valueOf((String) map.get("serviceType"))
+							: null)
+					.build())
+					.collect(Collectors.toList());
 		}
 
 		return UserAccount.builder()
-		        .accountId(Long.parseLong(accountId))
-		        .email(email)
-		        .name(name)
-		        .surname(surname)
-		        .serviceLocales(serviceLocales)
-		        .authorities(List.of(new SimpleGrantedAuthority("ROLE_" + userRole)))
-		        .build();
+				.accountId(Long.parseLong(accountId))
+				.email(email)
+				.name(name)
+				.surname(surname)
+				.serviceLocales(serviceLocales)
+				.authorities(List.of(new SimpleGrantedAuthority("ROLE_" + userRole)))
+				.build();
 	}
-	
+
 }
