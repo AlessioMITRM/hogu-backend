@@ -33,7 +33,8 @@ services:
       context: ./hogu-server
       dockerfile: Dockerfile
     container_name: staging-backend
-    env_file: .env
+    env_file:
+      - ./hogu-server/.env 
     environment:
       - SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA=hogu
       - SPRING_PROFILES_ACTIVE=stag
