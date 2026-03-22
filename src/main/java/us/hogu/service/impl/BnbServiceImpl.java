@@ -393,7 +393,7 @@ public class BnbServiceImpl implements BnbService {
 
 		BnbRoom room = bnbMapper.toRoomEntity(dto);
 		room.setBnbService(service);
-		room.setPublicationStatus(dto.getAvailable() != null ? dto.getAvailable() : true);
+		room.setPublicationStatus(dto.getEffectivePublicationStatus() != null ? dto.getEffectivePublicationStatus() : true);
 
 		if (dto.getPriceCalendar() != null && !dto.getPriceCalendar().isEmpty()) {
 			List<BnbRoomPriceCalendar> calendarEntries = new ArrayList<>();
@@ -704,8 +704,8 @@ public class BnbServiceImpl implements BnbService {
 		if (request.getPriceForNight() != null) {
 			room.setBasePricePerNight(request.getPriceForNight());
 		}
-		if (request.getAvailable() != null) {
-			room.setPublicationStatus(request.getAvailable());
+		if (request.getEffectivePublicationStatus() != null) {
+			room.setPublicationStatus(request.getEffectivePublicationStatus());
 		}
 
 		if (request.getPriceCalendar() != null) {

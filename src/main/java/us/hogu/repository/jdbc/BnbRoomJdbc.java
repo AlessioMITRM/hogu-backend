@@ -92,24 +92,28 @@ public class BnbRoomJdbc {
         sql.append(" JOIN hogu.bnb_services bs ON r.bnb_service_id = bs.id ");
         sql.append(" LEFT JOIN hogu.service_locales sl ON bs.id = sl.bnb_service_id AND sl.language = :language ");
         sql.append(" WHERE 1=1 ");
+        sql.append(" AND COALESCE(r.publication_status, false) = true ");
+        sql.append(" AND COALESCE(bs.publication_status, false) = true ");
         sql.append(" AND r.max_guests >= :totalGuests ");
 
         if (request.getSearchTerm() != null) {
             sql.append(" AND (LOWER(CAST(r.name AS TEXT)) LIKE LOWER(:searchTerm) ")
-               .append(" OR LOWER(CAST(sl.address AS TEXT)) LIKE LOWER(:searchTerm)) ");
+               .append(" OR EXISTS (SELECT 1 FROM hogu.service_locales sl2 WHERE sl2.bnb_service_id = bs.id AND LOWER(CAST(sl2.address AS TEXT)) LIKE LOWER(:searchTerm))) ");
         }
-        
+
+        // Per i filtri di location, usiamo EXISTS su service_locales (senza vincolo su language)
+        // cosi' non perdiamo risultati se il locale non esiste per la lingua richiesta
         if (countryParam != null) {
-            sql.append(" AND LOWER(CAST(sl.country AS TEXT)) LIKE LOWER(:country) ");
+            sql.append(" AND EXISTS (SELECT 1 FROM hogu.service_locales sl2 WHERE sl2.bnb_service_id = bs.id AND LOWER(CAST(sl2.country AS TEXT)) LIKE LOWER(:country)) ");
         }
         if (provinceParam != null) {
-            sql.append(" AND LOWER(CAST(sl.province AS TEXT)) LIKE LOWER(:province) ");
+            sql.append(" AND EXISTS (SELECT 1 FROM hogu.service_locales sl2 WHERE sl2.bnb_service_id = bs.id AND LOWER(CAST(sl2.province AS TEXT)) LIKE LOWER(:province)) ");
         }
         if (cityParam != null) {
-            sql.append(" AND LOWER(CAST(sl.city AS TEXT)) LIKE LOWER(:city) ");
+            sql.append(" AND EXISTS (SELECT 1 FROM hogu.service_locales sl2 WHERE sl2.bnb_service_id = bs.id AND LOWER(CAST(sl2.city AS TEXT)) LIKE LOWER(:city)) ");
         }
         if (stateParam != null) {
-            sql.append(" AND LOWER(CAST(sl.state AS TEXT)) LIKE LOWER(:state) ");
+            sql.append(" AND EXISTS (SELECT 1 FROM hogu.service_locales sl2 WHERE sl2.bnb_service_id = bs.id AND LOWER(CAST(sl2.state AS TEXT)) LIKE LOWER(:state)) ");
         }
 
         // Controllo disponibilità
