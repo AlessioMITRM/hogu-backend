@@ -40,4 +40,6 @@ public class ProviderRegistrationRequestDto {
     private Long maxCapacity;
 
     private java.math.BigDecimal basePrice;
+
+    private List<ServiceLocaleRequestDto> locales;
 }

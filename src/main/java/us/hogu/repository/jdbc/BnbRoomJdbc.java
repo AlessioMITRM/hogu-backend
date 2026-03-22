@@ -45,6 +45,8 @@ public class BnbRoomJdbc {
 
         String countryParam = null;
         String provinceParam = null;
+        String cityParam = null;
+        String stateParam = null;
         
         if (request.getLocale() != null) {
             if (request.getLocale().getProvince() != null && !request.getLocale().getProvince().trim().isEmpty()) {
@@ -52,6 +54,12 @@ public class BnbRoomJdbc {
             }
             if (request.getLocale().getCountry() != null && !request.getLocale().getCountry().trim().isEmpty()) {
                 countryParam = request.getLocale().getCountry().trim();
+            }
+            if (request.getLocale().getCity() != null && !request.getLocale().getCity().trim().isEmpty()) {
+                cityParam = request.getLocale().getCity().trim();
+            }
+            if (request.getLocale().getState() != null && !request.getLocale().getState().trim().isEmpty()) {
+                stateParam = request.getLocale().getState().trim();
             }
         }
         
@@ -62,6 +70,8 @@ public class BnbRoomJdbc {
         params.addValue("searchTerm", request.getSearchTerm() != null ? "%" + request.getSearchTerm() + "%" : null);
         params.addValue("country", countryParam != null ? "%" + countryParam + "%" : null);
         params.addValue("province", provinceParam != null ? "%" + provinceParam + "%" : null);
+        params.addValue("city", cityParam != null ? "%" + cityParam + "%" : null);
+        params.addValue("state", stateParam != null ? "%" + stateParam + "%" : null);
         params.addValue("checkIn", request.getCheckIn());
         params.addValue("checkOut", request.getCheckOut());
         params.addValue("totalGuests", request.getAdults() + request.getChildren());
@@ -94,6 +104,12 @@ public class BnbRoomJdbc {
         }
         if (provinceParam != null) {
             sql.append(" AND LOWER(CAST(sl.province AS TEXT)) LIKE LOWER(:province) ");
+        }
+        if (cityParam != null) {
+            sql.append(" AND LOWER(CAST(sl.city AS TEXT)) LIKE LOWER(:city) ");
+        }
+        if (stateParam != null) {
+            sql.append(" AND LOWER(CAST(sl.state AS TEXT)) LIKE LOWER(:state) ");
         }
 
         // Controllo disponibilità

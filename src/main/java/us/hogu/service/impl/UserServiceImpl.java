@@ -161,6 +161,11 @@ public class UserServiceImpl implements UserService {
                 user.setCreationDate(OffsetDateTime.now());
                 user.setStatus(UserStatus.PENDING);
 
+                if (request.getLocales() != null && !request.getLocales().isEmpty()) {
+                        List<ServiceLocale> locales = serviceLocaleMapper.mapRequestToEntity(request.getLocales());
+                        user.setServiceLocales(new ArrayList<>(locales));
+                }
+
                 User savedUser = userJpa.save(user);
 
                 // --- CREAZIONE ENTITA' SERVIZIO DEFAULT ---
