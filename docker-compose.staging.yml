@@ -35,7 +35,7 @@ services:
     container_name: staging-backend
     env_file: .env
     environment:
-      - SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA=public
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA=hogu
       - SPRING_PROFILES_ACTIVE=stag
       - SPRING_REDIS_HOST=redis
       - SPRING_RABBITMQ_HOST=rabbitmq
