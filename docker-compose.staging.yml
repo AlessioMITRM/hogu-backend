@@ -10,7 +10,7 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASS:-postgres}
-      POSTGRES_DB: sportellovirtuale
+      POSTGRES_DB: ${DB_NAME:-hogu}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: always
