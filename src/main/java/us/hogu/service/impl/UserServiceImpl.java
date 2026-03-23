@@ -57,6 +57,7 @@ import us.hogu.model.enums.BookingStatus;
 
 import us.hogu.repository.projection.UserSummaryProjection;
 import us.hogu.service.intefaces.EmailService;
+import us.hogu.service.intefaces.FileService;
 import us.hogu.service.intefaces.UserService;
 import lombok.RequiredArgsConstructor;
 import us.hogu.exception.ValidationException;
@@ -79,6 +80,7 @@ public class UserServiceImpl implements UserService {
         private final NccServiceJpa nccServiceJpa;
         private final LuggageServiceJpa luggageServiceJpa;
         private final RestaurantBookingJpa restaurantBookingRepository;
+        private final FileService fileService;
 
         @Override
         @Transactional
@@ -650,5 +652,66 @@ public class UserServiceImpl implements UserService {
                 emailService.sendEmailForAccountDeletion(originalEmail, user.getLanguage());
 
                 userJpa.save(user);
+
+                // Disattivazione servizi BnB e relative camere
+                List<BnbServiceEntity> bnbServices = bnbServiceJpa.findByUser(user);
+                for (BnbServiceEntity bnb : bnbServices) {
+                        bnb.setPublicationStatus(false);
+                        if (bnb.getRooms() != null) {
+                                for (us.hogu.model.BnbRoom room : bnb.getRooms()) {
+                                        room.setPublicationStatus(false);
+                                }
+                        }
+                        fileService.deleteServiceImages(bnb.getId(), ServiceType.BNB);
+                }
+                if (!bnbServices.isEmpty()) {
+                        bnbServiceJpa.saveAll(bnbServices);
+                }
+
+                // Disattivazione servizi Ristorante
+                List<RestaurantServiceEntity> restaurantServices = restaurantServiceJpa.findByUser(user);
+                for (RestaurantServiceEntity restaurant : restaurantServices) {
+                        restaurant.setPublicationStatus(false);
+                        fileService.deleteServiceImages(restaurant.getId(), ServiceType.RESTAURANT);
+                }
+                if (!restaurantServices.isEmpty()) {
+                        restaurantServiceJpa.saveAll(restaurantServices);
+                }
+
+                // Disattivazione servizi Club e relativi eventi
+                List<ClubServiceEntity> clubServices = clubServiceJpa.findByUser(user);
+                for (ClubServiceEntity club : clubServices) {
+                        club.setPublicationStatus(false);
+                        if (club.getEvents() != null) {
+                                for (us.hogu.model.EventClubServiceEntity event : club.getEvents()) {
+                                        event.setIsActive(false);
+                                        event.setDeleted(true);
+                                }
+                        }
+                        fileService.deleteServiceImages(club.getId(), ServiceType.CLUB);
+                }
+                if (!clubServices.isEmpty()) {
+                        clubServiceJpa.saveAll(clubServices);
+                }
+
+                // Disattivazione servizi NCC
+                List<NccServiceEntity> nccServices = nccServiceJpa.findByUser(user);
+                for (NccServiceEntity ncc : nccServices) {
+                        ncc.setPublicationStatus(false);
+                        fileService.deleteServiceImages(ncc.getId(), ServiceType.NCC);
+                }
+                if (!nccServices.isEmpty()) {
+                        nccServiceJpa.saveAll(nccServices);
+                }
+
+                // Disattivazione servizi Luggage
+                List<LuggageServiceEntity> luggageServices = luggageServiceJpa.findByUser(user);
+                for (LuggageServiceEntity luggage : luggageServices) {
+                        luggage.setPublicationStatus(false);
+                        fileService.deleteServiceImages(luggage.getId(), ServiceType.LUGGAGE);
+                }
+                if (!luggageServices.isEmpty()) {
+                        luggageServiceJpa.saveAll(luggageServices);
+                }
         }
 }
