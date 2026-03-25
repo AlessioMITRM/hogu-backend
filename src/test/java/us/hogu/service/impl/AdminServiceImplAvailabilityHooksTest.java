@@ -30,6 +30,7 @@ import us.hogu.repository.jpa.UserJpa;
 import us.hogu.repository.jpa.UserOtpJpa;
 import us.hogu.repository.jpa.UserServiceVerificationJpa;
 import us.hogu.service.intefaces.EmailService;
+import us.hogu.service.intefaces.FileService;
 import us.hogu.service.redis.RedisAvailabilityService;
 import us.hogu.service.redis.UserStatusRedisService;
 
@@ -49,6 +50,7 @@ class AdminServiceImplAvailabilityHooksTest {
         BnbBookingJpa bnbBookingJpa = mock(BnbBookingJpa.class);
         BookingJpa bookingJpa = mock(BookingJpa.class);
         EmailService emailService = mock(EmailService.class);
+        FileService fileService = mock(FileService.class);
         UserStatusRedisService userStatusRedisService = mock(UserStatusRedisService.class);
         RedisAvailabilityService redisAvailabilityService = mock(RedisAvailabilityService.class);
 
@@ -65,6 +67,7 @@ class AdminServiceImplAvailabilityHooksTest {
                 bnbBookingJpa,
                 bookingJpa,
                 emailService,
+                fileService,
                 userStatusRedisService,
                 redisAvailabilityService);
 
