@@ -204,6 +204,9 @@ public class AdminServiceImpl implements AdminService {
 		if (user.getStatus() == UserStatus.PENDING_ADMIN_APPROVAL) {
 			user.setStatus(UserStatus.ACTIVE);
 			userJpa.save(user);
+
+			// Invia email di attivazione
+			emailService.sendEmailForAccountActivation(user.getEmail(), user.getLanguage());
 		}
 
 		// Attiva anche i servizi specifici (pubblicazione)
@@ -217,14 +220,16 @@ public class AdminServiceImpl implements AdminService {
 				.orElseThrow(() -> new ValidationException("VERIFICATION_NOT_FOUND", "Verifica non trovata"));
 
 		User user = verification.getUser();
+		String userEmail = user.getEmail();
+		String userLang = user.getLanguage();
 
 		// Pulizia dei dati correlati che impediscono la cancellazione
 		cleanupUserRelatedData(user);
 
 		userJpa.delete(user);
 
-		// Invia email di rifiuto se necessario
-		// emailService.sendEmailForRejectService(user.getEmail(), motivation);
+		// Invia email di rifiuto
+		emailService.sendEmailForRejectAccount(userEmail, motivation, userLang);
 	}
 
 	private void cleanupUserRelatedData(User user) {
