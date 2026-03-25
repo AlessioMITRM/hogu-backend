@@ -17,7 +17,7 @@ import java.util.Optional;
 
 public interface ClubBookingJpa extends JpaRepository<ClubBooking, Long> {
 
-       Optional<ClubBooking> findByBookingCode(String bookingCode);
+       Optional<ClubBooking> findByBookingCodeIgnoreCase(String bookingCode);
 
        // CLIENTE - Prenotazioni club dell'utente (dal JSON: GET /bookings?userId=)
        @Query("SELECT cb FROM ClubBooking cb WHERE cb.user.id = :userId")

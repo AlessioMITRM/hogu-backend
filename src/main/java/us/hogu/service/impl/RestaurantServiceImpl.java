@@ -704,7 +704,7 @@ public class RestaurantServiceImpl implements RestaurantService {
             return RestaurantBookingValidationResponseDto.builder().valid(false).build();
         }
 
-        Optional<RestaurantBooking> opt = restaurantBookingRepository.findByBookingCode(code);
+        Optional<RestaurantBooking> opt = restaurantBookingRepository.findByBookingCodeIgnoreCase(code);
         if (opt.isEmpty()) {
             return RestaurantBookingValidationResponseDto.builder().valid(false).build();
         }

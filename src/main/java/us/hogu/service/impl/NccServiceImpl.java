@@ -611,7 +611,7 @@ public class NccServiceImpl implements NccService {
 					.build();
 		}
 
-		NccBooking booking = nccBookingJpa.findByBookingCode(code).orElse(null);
+		NccBooking booking = nccBookingJpa.findByBookingCodeIgnoreCase(code).orElse(null);
 		if (booking == null) {
 			return NccBookingValidationResponseDto.builder()
 					.valid(false)

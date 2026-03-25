@@ -449,7 +449,7 @@ public class ClubServiceImpl implements ClubService {
 			return ClubBookingValidationResponseDto.builder().valid(false).build();
 		}
 
-		ClubBooking booking = clubBookingJpa.findByBookingCode(bookingCode)
+		ClubBooking booking = clubBookingJpa.findByBookingCodeIgnoreCase(bookingCode)
 				.orElse(null);
 		if (booking == null) {
 			return ClubBookingValidationResponseDto.builder()

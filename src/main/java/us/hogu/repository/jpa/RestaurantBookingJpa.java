@@ -107,5 +107,5 @@ public interface RestaurantBookingJpa extends JpaRepository<RestaurantBooking, L
     @Query("SELECT rb FROM RestaurantBooking rb JOIN FETCH rb.restaurantService rs WHERE rb.status IN :statuses")
 	List<RestaurantBooking> findAllByStatusInWithService(@Param("statuses") java.util.Collection<BookingStatus> statuses);
 
-	Optional<RestaurantBooking> findByBookingCode(String bookingCode);
+	Optional<RestaurantBooking> findByBookingCodeIgnoreCase(String bookingCode);
 }

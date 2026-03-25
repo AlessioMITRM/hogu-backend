@@ -798,7 +798,7 @@ public class LuggageServiceImpl implements LuggageService {
                     .build();
         }
 
-        LuggageBooking booking = luggageBookingJpa.findByBookingCode(code)
+        LuggageBooking booking = luggageBookingJpa.findByBookingCodeIgnoreCase(code)
                 .orElseThrow(() -> new ValidationException(
                         ErrorConstants.BOOKING_LUGGAGE_NOT_FOUND.name(),
                         ErrorConstants.BOOKING_LUGGAGE_NOT_FOUND.getMessage()));

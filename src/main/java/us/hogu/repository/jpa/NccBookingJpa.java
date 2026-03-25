@@ -93,5 +93,5 @@ public interface NccBookingJpa extends JpaRepository<NccBooking, Long> {
 	@Query("SELECT nb FROM NccBooking nb JOIN FETCH nb.nccService ns JOIN FETCH ns.vehiclesAvailable WHERE nb.status IN :statuses")
 	List<NccBooking> findAllByStatusInWithServiceAndVehicles(@Param("statuses") Collection<BookingStatus> statuses);
 
-	java.util.Optional<NccBooking> findByBookingCode(String bookingCode);
+	java.util.Optional<NccBooking> findByBookingCodeIgnoreCase(String bookingCode);
 }
