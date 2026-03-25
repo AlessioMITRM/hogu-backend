@@ -47,6 +47,7 @@ import us.hogu.repository.projection.UserDocumentForGetAllProjection;
 import us.hogu.service.availability.AvailabilityBookingStatusPolicy;
 import us.hogu.service.intefaces.AdminService;
 import us.hogu.service.intefaces.EmailService;
+import us.hogu.service.intefaces.FileService;
 import us.hogu.service.redis.RedisAvailabilityService;
 import us.hogu.service.redis.UserStatusRedisService;
 
@@ -65,6 +66,7 @@ public class AdminServiceImpl implements AdminService {
 	private final BnbBookingJpa bnbBookingJpa;
 	private final BookingJpa bookingJpa;
 	private final EmailService emailService;
+	private final FileService fileService;
 	private final UserStatusRedisService userStatusRedisService;
 	private final RedisAvailabilityService redisAvailabilityService;
 
@@ -215,12 +217,50 @@ public class AdminServiceImpl implements AdminService {
 				.orElseThrow(() -> new ValidationException("VERIFICATION_NOT_FOUND", "Verifica non trovata"));
 
 		User user = verification.getUser();
+
+		// Pulizia dei dati correlati che impediscono la cancellazione
+		cleanupUserRelatedData(user);
+
 		userJpa.delete(user);
 
-		// Invia email di rifiuto (opzionale, se c'è un servizio email configurato per
-		// questo)
-		// emailService.sendEmailForRejectService(verification.getUser().getEmail(),
-		// motivation);
+		// Invia email di rifiuto se necessario
+		// emailService.sendEmailForRejectService(user.getEmail(), motivation);
+	}
+
+	private void cleanupUserRelatedData(User user) {
+		// 1. Elimina OTP
+		userOtpJpa.deleteByUser(user);
+
+		// 2. Elimina Servizi e relative immagini
+		List<NccServiceEntity> nccServices = nccServiceJpa.findByUser(user);
+		for (NccServiceEntity s : nccServices) {
+			fileService.deleteServiceImages(s.getId(), us.hogu.model.enums.ServiceType.NCC);
+			nccServiceJpa.delete(s);
+		}
+
+		List<RestaurantServiceEntity> restaurantServices = restaurantServiceJpa.findByUser(user);
+		for (RestaurantServiceEntity s : restaurantServices) {
+			fileService.deleteServiceImages(s.getId(), us.hogu.model.enums.ServiceType.RESTAURANT);
+			restaurantServiceJpa.delete(s);
+		}
+
+		List<ClubServiceEntity> clubServices = clubServiceJpa.findByUser(user);
+		for (ClubServiceEntity s : clubServices) {
+			fileService.deleteServiceImages(s.getId(), us.hogu.model.enums.ServiceType.CLUB);
+			clubServiceJpa.delete(s);
+		}
+
+		List<LuggageServiceEntity> luggageServices = luggageServiceJpa.findByUser(user);
+		for (LuggageServiceEntity s : luggageServices) {
+			fileService.deleteServiceImages(s.getId(), us.hogu.model.enums.ServiceType.LUGGAGE);
+			luggageServiceJpa.delete(s);
+		}
+
+		List<BnbServiceEntity> bnbServices = bnbServiceJpa.findByUser(user);
+		for (BnbServiceEntity s : bnbServices) {
+			fileService.deleteServiceImages(s.getId(), us.hogu.model.enums.ServiceType.BNB);
+			bnbServiceJpa.delete(s);
+		}
 	}
 
 	@Override

@@ -16,4 +16,6 @@ public interface UserOtpJpa extends JpaRepository<UserOtp, Long> {
 	Optional<UserOtp> findFirstByUserAndVerifiedFalseAndExpirationDateAfterOrderByIdDesc(User user, OffsetDateTime dateTime);
 
 	List<UserOtp> findByUser(User user);
+	
+	void deleteByUser(User user);
 }
