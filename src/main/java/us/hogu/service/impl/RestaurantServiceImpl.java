@@ -703,26 +703,16 @@ public class RestaurantServiceImpl implements RestaurantService {
         if (code == null || code.trim().isEmpty()) {
             return RestaurantBookingValidationResponseDto.builder().valid(false).build();
         }
-        String digits = code.replaceAll("[^0-9]", "");
-        if (digits.isEmpty()) {
-            return RestaurantBookingValidationResponseDto.builder().valid(false).build();
-        }
-        Long bookingId;
-        try {
-            bookingId = Long.parseLong(digits);
-        } catch (NumberFormatException e) {
-            return RestaurantBookingValidationResponseDto.builder().valid(false).build();
-        }
 
-        Optional<RestaurantBooking> opt = restaurantBookingRepository.findById(bookingId);
+        Optional<RestaurantBooking> opt = restaurantBookingRepository.findByBookingCode(code);
         if (opt.isEmpty()) {
-            return RestaurantBookingValidationResponseDto.builder().valid(false).bookingId(bookingId).build();
+            return RestaurantBookingValidationResponseDto.builder().valid(false).build();
         }
         RestaurantBooking booking = opt.get();
 
         if (booking.getRestaurantService() == null || booking.getRestaurantService().getUser() == null
                 || !booking.getRestaurantService().getUser().getId().equals(providerId)) {
-            return RestaurantBookingValidationResponseDto.builder().valid(false).bookingId(bookingId).build();
+            return RestaurantBookingValidationResponseDto.builder().valid(false).bookingId(booking.getId()).build();
         }
 
         boolean statusOk = booking.getStatus() == BookingStatus.COMPLETED || booking.getStatus() == BookingStatus.COMMISSION_PAID;

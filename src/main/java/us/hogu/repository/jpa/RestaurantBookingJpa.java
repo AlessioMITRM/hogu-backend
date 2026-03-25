@@ -3,11 +3,15 @@ package us.hogu.repository.jpa;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
+
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 
 import us.hogu.model.RestaurantBooking;
 import us.hogu.model.enums.BookingStatus;
@@ -100,8 +104,8 @@ public interface RestaurantBookingJpa extends JpaRepository<RestaurantBooking, L
            "AND rb.status = us.hogu.model.enums.BookingStatus.COMPLETED")
     List<RestaurantBooking> findCompletedByProviderIdAll(Long providerId);
 
-    @Query("SELECT rb FROM RestaurantBooking rb " +
-           "JOIN FETCH rb.restaurantService rs " +
-           "WHERE rb.status IN :statuses")
-    List<RestaurantBooking> findAllByStatusInWithService(java.util.Set<us.hogu.model.enums.BookingStatus> statuses);
+    @Query("SELECT rb FROM RestaurantBooking rb JOIN FETCH rb.restaurantService rs WHERE rb.status IN :statuses")
+	List<RestaurantBooking> findAllByStatusInWithService(@Param("statuses") java.util.Collection<BookingStatus> statuses);
+
+	Optional<RestaurantBooking> findByBookingCode(String bookingCode);
 }

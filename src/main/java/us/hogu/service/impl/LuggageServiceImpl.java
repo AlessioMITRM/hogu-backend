@@ -791,24 +791,14 @@ public class LuggageServiceImpl implements LuggageService {
     @Override
     @Transactional(readOnly = true)
     public LuggageBookingValidationResponseDto validateLuggageBookingByCode(Long providerId, String code) {
-        String digits = code != null ? code.replaceAll("\\D+", "") : null;
-        if (digits == null || digits.isBlank()) {
-            return LuggageBookingValidationResponseDto.builder()
-                    .valid(false)
-                    .serviceType(ServiceType.LUGGAGE.name())
-                    .build();
-        }
-        Long bookingId;
-        try {
-            bookingId = Long.parseLong(digits);
-        } catch (NumberFormatException e) {
+        if (code == null || code.trim().isEmpty()) {
             return LuggageBookingValidationResponseDto.builder()
                     .valid(false)
                     .serviceType(ServiceType.LUGGAGE.name())
                     .build();
         }
 
-        LuggageBooking booking = luggageBookingJpa.findById(bookingId)
+        LuggageBooking booking = luggageBookingJpa.findByBookingCode(code)
                 .orElseThrow(() -> new ValidationException(
                         ErrorConstants.BOOKING_LUGGAGE_NOT_FOUND.name(),
                         ErrorConstants.BOOKING_LUGGAGE_NOT_FOUND.getMessage()));

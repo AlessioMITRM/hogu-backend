@@ -112,4 +112,6 @@ public interface LuggageBookingJpa extends JpaRepository<LuggageBooking, Long> {
     // WARMUP - Trova tutte le prenotazioni con certi stati e carica il servizio (join fetch)
     @Query("SELECT lb FROM LuggageBooking lb JOIN FETCH lb.luggageService WHERE lb.status IN :statuses")
     List<LuggageBooking> findAllByStatusInWithService(@Param("statuses") java.util.Collection<BookingStatus> statuses);
+
+    java.util.Optional<LuggageBooking> findByBookingCode(String bookingCode);
 }

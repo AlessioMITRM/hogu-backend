@@ -606,26 +606,15 @@ public class NccServiceImpl implements NccService {
 	@Transactional(readOnly = true)
 	public NccBookingValidationResponseDto validateNccBookingByCode(Long providerId, String code) {
 		if (code == null || code.trim().isEmpty()) {
-			return NccBookingValidationResponseDto.builder().valid(false).build();
+			return NccBookingValidationResponseDto.builder()
+					.valid(false)
+					.build();
 		}
 
-		String digits = code.replaceAll("[^0-9]", "");
-		if (digits.isEmpty()) {
-			return NccBookingValidationResponseDto.builder().valid(false).build();
-		}
-
-		Long bookingId;
-		try {
-			bookingId = Long.parseLong(digits);
-		} catch (NumberFormatException e) {
-			return NccBookingValidationResponseDto.builder().valid(false).build();
-		}
-
-		NccBooking booking = nccBookingJpa.findById(bookingId).orElse(null);
+		NccBooking booking = nccBookingJpa.findByBookingCode(code).orElse(null);
 		if (booking == null) {
 			return NccBookingValidationResponseDto.builder()
 					.valid(false)
-					.bookingId(bookingId)
 					.build();
 		}
 
@@ -634,7 +623,7 @@ public class NccServiceImpl implements NccService {
 				|| !booking.getNccService().getUser().getId().equals(providerId)) {
 			return NccBookingValidationResponseDto.builder()
 					.valid(false)
-					.bookingId(bookingId)
+					.bookingId(booking.getId())
 					.build();
 		}
 
